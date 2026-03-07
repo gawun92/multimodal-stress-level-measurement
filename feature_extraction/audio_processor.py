@@ -31,7 +31,9 @@ HOP_LENGTH  = 512         # Hop length between frames
 MAX_FRAMES  = 1876        # Max time frames (≈ 60s at 16kHz / hop 512)
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR    = os.path.join(BASE_DIR, "data")
+CARC_DATA_DIR = "/project2/msoleyma_1026/group_14/data/stressid"
+LOCAL_DATA_DIR = os.path.join(BASE_DIR, "data", "stressid")
+DATA_DIR    = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
 OUTPUT_DIR  = os.path.join(BASE_DIR, "feature_extraction", "results", "mel_spectrograms")
 
 
@@ -77,7 +79,7 @@ def process_single_file(wav_path: str) -> np.ndarray:
 # Batch Processing
 # ─────────────────────────────────────────
 def process_all(split: str = "train"):
-    audio_dir  = os.path.join(DATA_DIR, split, "audio")
+    audio_dir  = os.path.join(DATA_DIR, "Audio", "bfl5") if os.path.exists(os.path.join(DATA_DIR, "Audio")) else os.path.join(DATA_DIR, split, "audio")
     output_dir = os.path.join(OUTPUT_DIR, split)
     os.makedirs(output_dir, exist_ok=True)
 

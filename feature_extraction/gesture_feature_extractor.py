@@ -18,7 +18,9 @@ MAX_FRAMES  = 300
 N_LANDMARKS = 21
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR    = os.path.join(BASE_DIR, "data")
+CARC_DATA_DIR = "/project2/msoleyma_1026/group_14/data/stressid"
+LOCAL_DATA_DIR = os.path.join(BASE_DIR, "data", "stressid")
+DATA_DIR    = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
 OUTPUT_DIR  = os.path.join(BASE_DIR, "feature_extraction", "results", "gesture")
 MODEL_PATH  = os.path.join(BASE_DIR, "feature_extraction", "tasks", "hand_landmarker.task")
 
@@ -93,7 +95,7 @@ def process_all(split: str = "train"):
         print("  curl -o feature_extraction/hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task")
         return
 
-    video_dir  = os.path.join(DATA_DIR, split, "videos")
+    video_dir  = os.path.join(DATA_DIR, "Videos") if os.path.exists(os.path.join(DATA_DIR, "Videos")) else os.path.join(DATA_DIR, split, "videos")
     output_dir = os.path.join(OUTPUT_DIR, split)
     os.makedirs(output_dir, exist_ok=True)
 
