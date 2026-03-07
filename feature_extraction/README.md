@@ -1,4 +1,4 @@
-# 🔬 Feature Extraction (Stage 1)
+# Feature Extraction (Stage 1)
 
 This directory contains the scripts responsible for preparing the raw `/data/stressid` inputs for deep learning consumption. 
 
