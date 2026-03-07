@@ -18,7 +18,9 @@ MAX_FRAMES  = 300
 N_LANDMARKS = 478
 
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR    = os.path.join(BASE_DIR, "data")
+CARC_DATA_DIR = "/project2/msoleyma_1026/group_14/data/stressid"
+LOCAL_DATA_DIR = os.path.join(BASE_DIR, "data", "stressid")
+DATA_DIR    = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
 OUTPUT_DIR  = os.path.join(BASE_DIR, "feature_extraction", "results", "face")
 MODEL_PATH  = os.path.join(BASE_DIR, "feature_extraction", "tasks", "face_landmarker.task")
 
@@ -62,6 +64,8 @@ def extract_face_landmarks(mp4_path: str) -> np.ndarray:
                     lm = detection.face_landmarks[0]
                     for j in range(min(len(lm), N_LANDMARKS)):
                         result[saved_idx, j] = [lm[j].x, lm[j].y, lm[j].z]
+                # If no face is detected, result[saved_idx] remains 0.0, 
+                # which satisfies the zero-padding constraint for missing faces.
 
                 saved_idx += 1
 
@@ -93,7 +97,7 @@ def process_all(split: str = "train"):
         print("  curl -o feature_extraction/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task")
         return
 
-    video_dir  = os.path.join(DATA_DIR, split, "videos")
+    video_dir  = os.path.join(DATA_DIR, "Videos") if os.path.exists(os.path.join(DATA_DIR, "Videos")) else os.path.join(DATA_DIR, split, "videos")
     output_dir = os.path.join(OUTPUT_DIR, split)
     os.makedirs(output_dir, exist_ok=True)
 
