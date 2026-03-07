@@ -1,4 +1,4 @@
-# 🧠 Deep Learning Architectures (Stage 2)
+# Deep Learning Architectures (Stage 2)
 
 This directory contains the PyTorch network infrastructure of our Multimodal Pipeline. 
 
@@ -6,7 +6,7 @@ Our implementation completely overhauls the original baseline architecture to fa
 
 ---
 
-## 🏗 The Branches
+## The Branches
 
 ### `face_branch.py` (Visual Modeling)
 *   **Architecture:** 2-Layer LSTM (Long Short-Term Memory Network).
@@ -22,7 +22,7 @@ Our implementation completely overhauls the original baseline architecture to fa
 
 ---
 
-## 🔀 Multimodal Fusion
+## Multimodal Fusion
 
 ### `fusion.py`
 The original pipeline primarily relied on shallow Machine Learning algorithms or decision-level voting. We implement **Late Feature-Level Fusion**.

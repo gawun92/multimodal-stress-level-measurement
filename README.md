@@ -1,21 +1,21 @@
-# 🛸 StressID Multimodal Pipeline (Group 14)
+# StressID Multimodal Pipeline (Group 14)
 
 Welcome to the **Group 14** implementation of the StressID Multimodal Pipeline. This repository is specifically tailored for execution on the **USC CARC (Discovery/Antigravity cluster)**, leveraging custom algorithmic optimizations to overcome environmental I/O bottlenecks.
 
-### 📍 Environment & Pathing Constraints
+### Environment & Pathing Constraints
 
 *   **Cluster:** USC CARC.
 *   **CARC Project Root:** `/project2/msoleyma_1026/group_14/`
 *   **Local Project Root:** Will dynamically fallback to `data/stressid/` if the CARC host is not detected.
 
-### 🛠 The "No-JPG" Architecture
+### The "No-JPG" Architecture
 
 To prevent choking the CARC compute nodes when dealing with high-frequency image data, we enforce a strict **No-JPG Rule**:
 *   No `.jpg` or `.png` intermediate frames from the `StressID Dataset` videos are ever saved to disk.
 *   Scripts use `cv2.VideoCapture` to read `.mp4` pixel blocks straight into RAM, buffer them at 5 FPS, and pass them to inference models inside memory boundaries.
 *   All features (MediaPipe FaceMesh, Hands, Audio Mel Spectrograms) are compiled dynamically and saved out as chunked `.npy` tracking matrices.
 
-### 📂 Directory Outline
+### Directory Outline
 
 ```text
 group_14/
@@ -34,7 +34,7 @@ group_14/
 └── extract_features.slurm      # Master shell script for SLURM batch deployments
 ```
 
-### 🚀 Execution
+### Execution
 
 To prep all features at once on the cluster, submit the provided batch script:
 
