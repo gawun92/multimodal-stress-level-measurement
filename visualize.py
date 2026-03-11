@@ -282,35 +282,38 @@ def plot_architecture():
     ax.set_ylim(0, 14)
     ax.axis("off")
 
+    # Each block: (x, y_center, text, facecolor, width, height)
     blocks = [
-        (5, 13.0, "Input: Mel Spectrogram\n(B, 1, 128, 1876)", "#E3F2FD", 3.5),
-        (5, 11.5, "2D-CNN Backbone\n3x [Conv2d + BN + ReLU + MaxPool2x2]\n(B, 128, 16, 234)", "#BBDEFB", 3.5),
-        (5, 9.8, "Frequency Collapse\nAverage over mel axis\n(B, 128, 234) -> (B, 234, 128)", "#90CAF9", 3.5),
-        (5, 8.2, "Sinusoidal Positional Encoding\n(B, 234, 128)", "#64B5F6", 3.5),
-        (5, 6.5, "Transformer Encoder\n2 layers, 4 heads, d=128, ff=256\n(B, 234, 128)", "#42A5F5", 3.5),
-        (5, 4.8, "Attention Pooling\nLearnable query + softmax weighting\n(B, 128)", "#1E88E5", 3.5),
-        (5, 3.2, "Classification Head\nLinear(128,64) + ReLU + Dropout + Linear(64,2)", "#1565C0", 3.5),
-        (5, 1.8, "Output: Stress Prediction\n(B, 2)", "#0D47A1", 3.5),
+        (5, 13.0, "Input: Mel Spectrogram\n(B, 1, 128, 1876)",                      "#E3F2FD", 3.5, 1.1),
+        (5, 11.5, "2D-CNN Backbone\n3x [Conv2d + BN + ReLU + MaxPool2x2]\n(B, 128, 16, 234)", "#BBDEFB", 3.5, 1.1),
+        (5,  9.8, "Frequency Collapse\nAverage over mel axis\n(B, 128, 234) -> (B, 234, 128)", "#90CAF9", 3.5, 1.1),
+        (5,  8.2, "Sinusoidal Positional Encoding\n(B, 234, 128)",                   "#64B5F6", 3.5, 1.1),
+        (5,  6.5, "Transformer Encoder\n2 layers, 4 heads, d=128, ff=256\n(B, 234, 128)", "#42A5F5", 3.5, 1.1),
+        (5,  4.8, "Attention Pooling\nLearnable query + softmax weighting\n(B, 128)", "#1E88E5", 3.5, 1.1),
+        # Taller box (height=1.5) so the 3-line text fits comfortably
+        (5,  3.1, "Classification Head\nLinear(128,64) + ReLU\n+ Dropout(0.3) + Linear(64,2)", "#1565C0", 3.5, 1.5),
+        (5,  1.6, "Output: Stress Prediction\n(B, 2)",                               "#0D47A1", 3.5, 1.1),
     ]
 
-    for x, y, text, color, width in blocks:
-        box = plt.Rectangle((x - width / 2, y - 0.55), width, 1.1,
+    for x, y, text, color, width, height in blocks:
+        half_h = height / 2
+        box = plt.Rectangle((x - width / 2, y - half_h), width, height,
                              facecolor=color, edgecolor="black", linewidth=1.5, alpha=0.9)
         ax.add_patch(box)
         ax.text(x, y, text, ha="center", va="center", fontsize=9, fontweight="bold")
 
-    # Arrows
+    # Arrows: connect bottom of block[i] to top of block[i+1]
     for i in range(len(blocks) - 1):
-        y_start = blocks[i][1] - 0.55
-        y_end = blocks[i + 1][1] + 0.55
+        y_start = blocks[i][1]     - blocks[i][5]     / 2   # bottom of current block
+        y_end   = blocks[i + 1][1] + blocks[i + 1][5] / 2   # top of next block
         ax.annotate("", xy=(5, y_end), xytext=(5, y_start),
                      arrowprops=dict(arrowstyle="->", lw=2, color="#333"))
 
-    # Side annotation for fusion
+    # Side annotation for fusion (points to Attention Pooling block at y=4.8)
     ax.annotate("128-d embedding\nfor fusion", xy=(6.8, 4.8), fontsize=10, color="#E65100",
                 fontweight="bold", ha="left",
                 arrowprops=dict(arrowstyle="->", lw=1.5, color="#E65100"),
-                xytext=(7.5, 4.0))
+                xytext=(7.5, 4.1))
 
     ax.set_title("Audio Branch Architecture\nCNN + Transformer + Attention Pooling",
                   fontweight="bold", fontsize=14, pad=10)
