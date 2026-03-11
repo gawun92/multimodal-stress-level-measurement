@@ -30,11 +30,8 @@ TEST_IDS: List[str] = ["wssm", "x1q3", "y8c3", "y9z6"]
 # ────────────────────────────────────────
 
 MAX_FRAMES = 300
-N_LANDMARKS = 86
-N_COORDS = 3
 
 # Hyperparameters
-INPUT_SIZE = N_LANDMARKS * N_COORDS
 CNN_CHANNELS = [256, 128]
 KERNEL_SIZE = 3
 LSTM_HIDDEN = 256
@@ -46,6 +43,30 @@ LR = 1e-3
 N_SPLITS = 10
 DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
+def _pad_or_truncate(arr: np.ndarray) -> np.ndarray:
+    """Normalize a variable-length face array to (MAX_FRAMES, F)."""
+    arr = arr.reshape(arr.shape[0], -1).astype(np.float32)  # (T, F)
+    T, F = arr.shape
+    if T >= MAX_FRAMES:
+        return arr[:MAX_FRAMES]
+    pad = np.zeros((MAX_FRAMES - T, F), dtype=np.float32)
+    return np.concatenate([arr, pad], axis=0)
+
+
+def detect_input_size(face_dir: str = None) -> int:
+    """Detect the feature dimension from the first .npy file on disk."""
+    face_dir = face_dir or FACE_DIR
+    for pid in sorted(os.listdir(face_dir)):
+        pid_dir = os.path.join(face_dir, pid)
+        if not os.path.isdir(pid_dir):
+            continue
+        for npy_file in sorted(os.listdir(pid_dir)):
+            if npy_file.endswith("_face.npy"):
+                arr = np.load(os.path.join(pid_dir, npy_file))
+                return int(np.prod(arr.shape[1:]))
+    raise RuntimeError(f"No _face.npy files found in {face_dir}")
+
+
 class StressDataset(Dataset):
     def __init__(self, samples: List[Tuple[np.ndarray, int]]):
         self.samples = samples
@@ -55,8 +76,7 @@ class StressDataset(Dataset):
 
     def __getitem__(self, idx):
         arr, label = self.samples[idx]
-        x = arr.reshape(MAX_FRAMES, N_LANDMARKS * N_COORDS)
-        x = torch.from_numpy(x)
+        x = torch.from_numpy(_pad_or_truncate(arr))
         y = torch.tensor(label, dtype=torch.long)
         return x, y
 
@@ -168,9 +188,7 @@ def evaluate_on_heldout(
 
     with torch.no_grad():
         for arr, label, pid, npy_file in held_out_samples:
-            x = torch.from_numpy(
-                arr.reshape(1, MAX_FRAMES, N_LANDMARKS * N_COORDS)
-            ).to(device)
+            x = torch.from_numpy(_pad_or_truncate(arr)).unsqueeze(0).to(device)
             logits = model(x)
             probs = F.softmax(logits, dim=1).cpu().numpy()
             pred = logits.argmax(1).item()
@@ -211,7 +229,7 @@ def run_kfold(
         batch_size: int = BATCH_SIZE,
         seed: int = 42,
         **train_kwargs,
-) -> Tuple[List[Dict], list, list]:
+) -> Tuple[List[Dict], list, list, int]:
     kfold_subjects, held_out_samples = build_subject_samples(label_col=label_col)
     fold_results = []
     fold_models = []
@@ -258,7 +276,7 @@ class AttentionPooling(nn.Module):
 
 
 class StressCNNLSTM(nn.Module):
-    def __init__(self, input_size=INPUT_SIZE, cnn_channels=CNN_CHANNELS,
+    def __init__(self, input_size, cnn_channels=CNN_CHANNELS,
                  kernel_size=KERNEL_SIZE, lstm_hidden=LSTM_HIDDEN,
                  lstm_layers=LSTM_LAYERS, dropout=DROPOUT, num_classes=2):
         super().__init__()
@@ -365,7 +383,10 @@ def train_full(label_col="binary-stress", epochs=EPOCHS, lr=LR,
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, f"cnn_lstm_full_{label_col}.pt")
 
-    model = StressCNNLSTM(num_classes=num_classes).to(DEVICE)
+    input_size = detect_input_size()
+    print(f"  input_size : {input_size} (auto-detected from .npy files)")
+
+    model = StressCNNLSTM(input_size=input_size, num_classes=num_classes).to(DEVICE)
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
@@ -410,10 +431,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     num_classes = 2 if args.label == "binary-stress" else 3
+    input_size = detect_input_size()
+    print(f"[face] input_size: {input_size} (auto-detected from .npy files)")
 
     if args.kfold == "Y":
         fold_results, held_out_samples, fold_models = run_kfold(
-            model_fn=lambda: StressCNNLSTM(num_classes=num_classes),
+            model_fn=lambda: StressCNNLSTM(input_size=input_size, num_classes=num_classes),
             train_fn=train_one_fold,
             label_col=args.label,
             n_splits=args.n_splits,
