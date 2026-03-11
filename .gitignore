@@ -1,1 +1,28 @@
+# Data (too large for git)
 /data/
+feature_extraction/results/
+
+# Model checkpoints (binaries, tracked separately)
+checkpoints/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# macOS
+.DS_Store
+.DS_Store?
+
+# Logs (generated at runtime)
+*.log
+training_log.txt
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
