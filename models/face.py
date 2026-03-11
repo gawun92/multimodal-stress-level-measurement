@@ -10,12 +10,14 @@ Usage:
 """
 
 import os
+import sys
 import csv
 import argparse
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from contextlib import contextmanager
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, DataLoader
@@ -26,8 +28,38 @@ from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, classificat
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(BASE_DIR, "data/stressid/labels.csv")
 FACE_DIR = os.path.join(BASE_DIR, "feature_extraction/results/face/train")
+RESULTS_DIR = os.path.join(BASE_DIR, "results", "face")
 TEST_IDS: List[str] = ["wssm", "x1q3", "y8c3", "y9z6"]
 # ────────────────────────────────────────
+
+
+class _TeeStream:
+    """Writes to both the original stream and a file."""
+    def __init__(self, original, file_handle):
+        self.original = original
+        self.file_handle = file_handle
+
+    def write(self, data):
+        self.original.write(data)
+        self.file_handle.write(data)
+
+    def flush(self):
+        self.original.flush()
+        self.file_handle.flush()
+
+
+@contextmanager
+def tee_to_file(filepath: str):
+    """Context manager that duplicates stdout to a text file."""
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, "w", encoding="utf-8") as f:
+        tee = _TeeStream(sys.stdout, f)
+        old_stdout = sys.stdout
+        sys.stdout = tee
+        try:
+            yield f
+        finally:
+            sys.stdout = old_stdout
 
 MAX_FRAMES = 300
 
@@ -37,10 +69,11 @@ KERNEL_SIZE = 3
 LSTM_HIDDEN = 256
 LSTM_LAYERS = 2
 DROPOUT = 0.3
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 EPOCHS = 50
-LR = 1e-3
-N_SPLITS = 10
+LR = 3e-4
+N_SPLITS = 5
+
 DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
 def _pad_or_truncate(arr: np.ndarray) -> np.ndarray:
@@ -364,56 +397,61 @@ def train_one_fold(model, train_loader, val_loader,
 
 def train_full(label_col="binary-stress", epochs=EPOCHS, lr=LR,
                batch_size=BATCH_SIZE, save_dir="checkpoints"):
-    num_classes = 2 if label_col == "binary-stress" else 3
-    kfold_subjects, held_out_samples = build_subject_samples(label_col=label_col)
+    out_path = os.path.join(RESULTS_DIR, f"train_full_{label_col}.txt")
 
-    all_samples = []
-    for samples in kfold_subjects.values():
-        all_samples.extend(samples)
+    with tee_to_file(out_path):
+        num_classes = 2 if label_col == "binary-stress" else 3
+        kfold_subjects, held_out_samples = build_subject_samples(label_col=label_col)
 
-    train_loader = DataLoader(StressDataset(all_samples),
-                              batch_size=batch_size, shuffle=True)
+        all_samples = []
+        for samples in kfold_subjects.values():
+            all_samples.extend(samples)
 
-    print(f"\n{'=' * 60}")
-    print(f"  [CNN-LSTM]  Full Training (no K-Fold)  task={label_col}")
-    print(f"{'=' * 60}")
-    print(f"  train    : {len(all_samples)} samples  (held-out excluded)")
-    print(f"  held-out : {len(held_out_samples)} samples → final eval only")
+        train_loader = DataLoader(StressDataset(all_samples),
+                                  batch_size=batch_size, shuffle=True)
 
-    os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, f"cnn_lstm_full_{label_col}.pt")
+        print(f"\n{'=' * 60}")
+        print(f"  [CNN-LSTM]  Full Training (no K-Fold)  task={label_col}")
+        print(f"{'=' * 60}")
+        print(f"  train    : {len(all_samples)} samples  (held-out excluded)")
+        print(f"  held-out : {len(held_out_samples)} samples → final eval only")
 
-    input_size = detect_input_size()
-    print(f"  input_size : {input_size} (auto-detected from .npy files)")
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"cnn_lstm_full_{label_col}.pt")
 
-    model = StressCNNLSTM(input_size=input_size, num_classes=num_classes).to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
+        input_size = detect_input_size()
+        print(f"  input_size : {input_size} (auto-detected from .npy files)")
 
-    print(f"\n  {'Epoch':>6}  {'TrainLoss':>10}")
-    print(f"  {'-' * 22}")
+        model = StressCNNLSTM(input_size=input_size, num_classes=num_classes).to(DEVICE)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+        scheduler = ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
-    for epoch in range(1, epochs + 1):
-        model.train()
-        train_loss = 0.0
-        for x, y in train_loader:
-            x, y = x.to(DEVICE), y.to(DEVICE)
-            optimizer.zero_grad()
-            loss = criterion(model(x), y)
-            loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
-            train_loss += loss.item() * len(y)
-        train_loss /= len(all_samples)
+        print(f"\n  {'Epoch':>6}  {'TrainLoss':>10}")
+        print(f"  {'-' * 22}")
 
-        print(f"  {epoch:>6}  {train_loss:>10.4f}")
-        scheduler.step(train_loss)
+        for epoch in range(1, epochs + 1):
+            model.train()
+            train_loss = 0.0
+            for x, y in train_loader:
+                x, y = x.to(DEVICE), y.to(DEVICE)
+                optimizer.zero_grad()
+                loss = criterion(model(x), y)
+                loss.backward()
+                nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
+                train_loss += loss.item() * len(y)
+            train_loss /= len(all_samples)
 
-    torch.save(model.state_dict(), save_path)
-    print(f"\n  Model saved → {save_path}")
+            print(f"  {epoch:>6}  {train_loss:>10.4f}")
+            scheduler.step(train_loss)
 
-    evaluate_on_heldout(model, held_out_samples, label_col=label_col)
+        torch.save(model.state_dict(), save_path)
+        print(f"\n  Model saved → {save_path}")
+
+        evaluate_on_heldout(model, held_out_samples, label_col=label_col)
+
+    print(f"[face] Results saved to {out_path}")
 
 
 if __name__ == "__main__":
@@ -432,36 +470,43 @@ if __name__ == "__main__":
 
     num_classes = 2 if args.label == "binary-stress" else 3
     input_size = detect_input_size()
-    print(f"[face] input_size: {input_size} (auto-detected from .npy files)")
 
-    if args.kfold == "Y":
-        fold_results, held_out_samples, fold_models = run_kfold(
-            model_fn=lambda: StressCNNLSTM(input_size=input_size, num_classes=num_classes),
-            train_fn=train_one_fold,
-            label_col=args.label,
-            n_splits=args.n_splits,
-            batch_size=args.batch_size,
-            epochs=args.epochs,
-            lr=args.lr,
-            save_dir=args.save_dir,
-        )
-        # K-Fold summary
-        keys = ["Accuracy", "Weighted_F1", "Macro_F1", "AUC_ROC"]
-        print("\n" + "=" * 60)
-        print(f"  K-FOLD CROSS-VALIDATION SUMMARY  (task={args.label})")
-        print("=" * 60)
-        for k in keys:
-            vals = np.array([r[k] for r in fold_results])
-            print(f"  {k:<14}  mean={np.nanmean(vals):.4f}  std={np.nanstd(vals):.4f}")
-        print("=" * 60)
+    mode = "kfold" if args.kfold == "Y" else "full"
+    out_path = os.path.join(RESULTS_DIR, f"main_{mode}_{args.label}.txt")
 
-        best_idx = max(range(len(fold_results)),
-                       key=lambda i: fold_results[i]["Accuracy"])
-        best_model = fold_models[best_idx]
-        print(f"\n  Best fold: {best_idx + 1}  "
-              f"(Accuracy={fold_results[best_idx]['Accuracy']:.4f})")
-        evaluate_on_heldout(best_model, held_out_samples, label_col=args.label)
+    with tee_to_file(out_path):
+        print(f"[face] input_size: {input_size} (auto-detected from .npy files)")
 
-    else:
-        train_full(label_col=args.label, epochs=args.epochs, lr=args.lr,
-                   batch_size=args.batch_size, save_dir=args.save_dir)
+        if args.kfold == "Y":
+            fold_results, held_out_samples, fold_models = run_kfold(
+                model_fn=lambda: StressCNNLSTM(input_size=input_size, num_classes=num_classes),
+                train_fn=train_one_fold,
+                label_col=args.label,
+                n_splits=args.n_splits,
+                batch_size=args.batch_size,
+                epochs=args.epochs,
+                lr=args.lr,
+                save_dir=args.save_dir,
+            )
+            # K-Fold summary
+            keys = ["Accuracy", "Weighted_F1", "Macro_F1", "AUC_ROC"]
+            print("\n" + "=" * 60)
+            print(f"  K-FOLD CROSS-VALIDATION SUMMARY  (task={args.label})")
+            print("=" * 60)
+            for k in keys:
+                vals = np.array([r[k] for r in fold_results])
+                print(f"  {k:<14}  mean={np.nanmean(vals):.4f}  std={np.nanstd(vals):.4f}")
+            print("=" * 60)
+
+            best_idx = max(range(len(fold_results)),
+                           key=lambda i: fold_results[i]["Accuracy"])
+            best_model = fold_models[best_idx]
+            print(f"\n  Best fold: {best_idx + 1}  "
+                  f"(Accuracy={fold_results[best_idx]['Accuracy']:.4f})")
+            evaluate_on_heldout(best_model, held_out_samples, label_col=args.label)
+
+        else:
+            train_full(label_col=args.label, epochs=args.epochs, lr=args.lr,
+                       batch_size=args.batch_size, save_dir=args.save_dir)
+
+    print(f"[face] Results saved to {out_path}")
