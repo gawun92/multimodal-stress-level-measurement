@@ -1,18 +1,3 @@
-"""
-audio_processor.py
-
-Stage 1 - Audio Preprocessing
-Converts raw .wav files into Mel Spectrogram and saves as .npy
-
-Input  : data/{split}/audio/{subjectID}/{subjectID}_{task}.wav
-Output : feature_extraction/results/mel_spectrograms/{split}/{subjectID}/{task}_mel.npy
-         Shape: (1, N_MELS, T) — (channel, mel_bins, time_frames)
-
-Usage:
-    python feature_extraction/audio_processor.py --split train
-    python feature_extraction/audio_processor.py --split test
-"""
-
 import os
 import argparse
 import numpy as np
@@ -20,26 +5,19 @@ import librosa
 from pathlib import Path
 from tqdm import tqdm
 
+SAMPLE_RATE = 16000  # Resample all audio to 16kHz
+N_MELS = 128  # Number of Mel filterbanks
+N_FFT = 1024  # FFT window size
+HOP_LENGTH = 512  # Hop length between frames
+MAX_FRAMES = 1876  # Max time frames (≈ 60s at 16kHz / hop 512)
 
-# ─────────────────────────────────────────
-# Config
-# ─────────────────────────────────────────
-SAMPLE_RATE = 16000       # Resample all audio to 16kHz
-N_MELS      = 128         # Number of Mel filterbanks
-N_FFT       = 1024        # FFT window size
-HOP_LENGTH  = 512         # Hop length between frames
-MAX_FRAMES  = 1876        # Max time frames (≈ 60s at 16kHz / hop 512)
-
-BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CARC_DATA_DIR = "/project2/msoleyma_1026/group_14/data/stressid"
 LOCAL_DATA_DIR = os.path.join(BASE_DIR, "data", "stressid")
-DATA_DIR    = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
-OUTPUT_DIR  = os.path.join(BASE_DIR, "feature_extraction", "results", "mel_spectrograms")
+DATA_DIR = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
+OUTPUT_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "mel_spectrograms")
 
 
-# ─────────────────────────────────────────
-# Core Functions
-# ─────────────────────────────────────────
 def load_audio(wav_path: str) -> np.ndarray:
     audio, _ = librosa.load(wav_path, sr=SAMPLE_RATE, mono=True)
     return audio
@@ -62,24 +40,22 @@ def pad_or_truncate(mel: np.ndarray, max_frames: int = MAX_FRAMES) -> np.ndarray
 
 def normalize(mel: np.ndarray) -> np.ndarray:
     mean = mel.mean()
-    std  = mel.std() + 1e-8
+    std = mel.std() + 1e-8
     return (mel - mean) / std
 
 
 def process_single_file(wav_path: str) -> np.ndarray:
     audio = load_audio(wav_path)
-    mel   = compute_mel_spectrogram(audio)
-    mel   = pad_or_truncate(mel)
-    mel   = normalize(mel)
-    mel   = mel[np.newaxis, :]      # (1, N_MELS, T)
+    mel = compute_mel_spectrogram(audio)
+    mel = pad_or_truncate(mel)
+    mel = normalize(mel)
+    mel = mel[np.newaxis, :]  # (1, N_MELS, T)
     return mel
 
 
-# ─────────────────────────────────────────
-# Batch Processing
-# ─────────────────────────────────────────
 def process_all(split: str = "train"):
-    audio_dir  = os.path.join(DATA_DIR, "Audio") if os.path.exists(os.path.join(DATA_DIR, "Audio")) else os.path.join(DATA_DIR, split, "audio")
+    audio_dir = os.path.join(DATA_DIR, "Audio") if os.path.exists(os.path.join(DATA_DIR, "Audio")) else os.path.join(
+        DATA_DIR, split, "audio")
     output_dir = os.path.join(OUTPUT_DIR, split)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -93,9 +69,9 @@ def process_all(split: str = "train"):
     success, skip, fail = 0, 0, 0
 
     for wav_path in tqdm(wav_files, desc=f"  [{split}] Mel Spectrogram"):
-        stem       = wav_path.stem                    # "2ea4_Counting1"
-        subject_id = stem.split("_")[0]               # "2ea4"
-        task       = "_".join(stem.split("_")[1:])    # "Counting1"
+        stem = wav_path.stem  # "2ea4_Counting1"
+        subject_id = stem.split("_")[0]  # "2ea4"
+        task = "_".join(stem.split("_")[1:])  # "Counting1"
 
         subject_out_dir = os.path.join(output_dir, subject_id)
         os.makedirs(subject_out_dir, exist_ok=True)
@@ -104,7 +80,6 @@ def process_all(split: str = "train"):
         if os.path.exists(out_path):
             skip += 1
             continue
-
         try:
             mel = process_single_file(str(wav_path))
             np.save(out_path, mel)
@@ -117,9 +92,6 @@ def process_all(split: str = "train"):
     print(f"[audio_processor] Output saved to: {output_dir}")
 
 
-# ─────────────────────────────────────────
-# Entry Point
-# ─────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audio Preprocessing: .wav → Mel Spectrogram → .npy")
     parser.add_argument("--split", type=str, default="train", choices=["train", "test"],

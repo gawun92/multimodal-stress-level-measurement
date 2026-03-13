@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,16 +12,16 @@ from stress_dataset import (
     FACE_DIR, CSV_PATH, TEST_IDS,
 )
 
-INPUT_SIZE   = N_LANDMARKS * N_COORDS
+INPUT_SIZE = N_LANDMARKS * N_COORDS
 CNN_CHANNELS = [256, 128]
-KERNEL_SIZE  = 3
-LSTM_HIDDEN  = 256
-LSTM_LAYERS  = 2
-DROPOUT      = 0.3
-BATCH_SIZE   = 16
-EPOCHS       = 10
-LR           = 1e-3
-DEVICE       = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+KERNEL_SIZE = 3
+LSTM_HIDDEN = 256
+LSTM_LAYERS = 2
+DROPOUT = 0.3
+BATCH_SIZE = 16
+EPOCHS = 10
+LR = 1e-3
+DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class AttentionPooling(nn.Module):
@@ -48,7 +47,7 @@ class StressCNNLSTM(nn.Module):
                 nn.BatchNorm1d(out_ch), nn.ReLU(), nn.Dropout(dropout),
             ]
             in_ch = out_ch
-        self.cnn  = nn.Sequential(*cnn_layers)
+        self.cnn = nn.Sequential(*cnn_layers)
         self.lstm = nn.LSTM(input_size=cnn_channels[-1], hidden_size=lstm_hidden,
                             num_layers=lstm_layers, batch_first=True, bidirectional=True,
                             dropout=dropout if lstm_layers > 1 else 0.0)
@@ -73,17 +72,17 @@ def train_one_fold(model, train_loader, val_loader,
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, f"cnn_lstm_fold{fold}.pt")
 
-    model     = model.to(DEVICE)
+    model = model.to(DEVICE)
     optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
     best_metrics = {"RMSE": float("inf"),
                     "Pearson": 0.0, "MSE": float("inf")}
-    best_state   = None
-    history      = {"loss": [], "rmse": [], "pearson": []}
+    best_state = None
+    history = {"loss": [], "rmse": [], "pearson": []}
 
     print(f"\n  {'Epoch':>6}  {'TrainLoss':>10}  {'RMSE':>8}  {'Pearson':>8}")
-    print(f"  {'-'*46}")
+    print(f"  {'-' * 46}")
 
     for epoch in range(1, epochs + 1):
         model.train()
@@ -117,7 +116,7 @@ def train_one_fold(model, train_loader, val_loader,
 
         if metrics["RMSE"] < best_metrics["RMSE"]:
             best_metrics = metrics
-            best_state   = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             torch.save(best_state, save_path)
 
     model.load_state_dict(best_state)
@@ -126,34 +125,35 @@ def train_one_fold(model, train_loader, val_loader,
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--face_dir",   default=FACE_DIR)
-    parser.add_argument("--csv_path",   default=CSV_PATH)
-    parser.add_argument("--test_ids",   nargs="+", default=TEST_IDS)
-    parser.add_argument("--n_splits",   type=int,   default=5)
-    parser.add_argument("--epochs",     type=int,   default=EPOCHS)
-    parser.add_argument("--batch_size", type=int,   default=BATCH_SIZE)
-    parser.add_argument("--lr",         type=float, default=LR)
-    parser.add_argument("--save_dir",   default="checkpoints")
+    parser.add_argument("--face_dir", default=FACE_DIR)
+    parser.add_argument("--csv_path", default=CSV_PATH)
+    parser.add_argument("--test_ids", nargs="+", default=TEST_IDS)
+    parser.add_argument("--n_splits", type=int, default=5)
+    parser.add_argument("--epochs", type=int, default=EPOCHS)
+    parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
+    parser.add_argument("--lr", type=float, default=LR)
+    parser.add_argument("--save_dir", default="checkpoints")
     args = parser.parse_args()
 
     fold_results, held_out_samples, fold_models = run_kfold(
-        model_fn    = StressCNNLSTM,
-        train_fn    = train_one_fold,
-        face_dir    = args.face_dir,
-        csv_path    = args.csv_path,
-        test_ids    = args.test_ids,
-        n_splits    = args.n_splits,
-        batch_size  = args.batch_size,
-        model_name  = "CNN-LSTM",
-        epochs      = args.epochs,
-        lr          = args.lr,
-        save_dir    = args.save_dir,
+        model_fn=StressCNNLSTM,
+        train_fn=train_one_fold,
+        face_dir=args.face_dir,
+        csv_path=args.csv_path,
+        test_ids=args.test_ids,
+        n_splits=args.n_splits,
+        batch_size=args.batch_size,
+        model_name="CNN-LSTM",
+        epochs=args.epochs,
+        lr=args.lr,
+        save_dir=args.save_dir,
     )
 
     print_kfold_summary({"CNN-LSTM": fold_results})
 
-    best_idx   = min(range(len(fold_results)), key=lambda i: fold_results[i]["RMSE"])
+    best_idx = min(range(len(fold_results)), key=lambda i: fold_results[i]["RMSE"])
     best_model = fold_models[best_idx]
     heldout_metrics = evaluate_on_heldout(best_model, held_out_samples,
                                           model_name="CNN-LSTM", device=DEVICE)

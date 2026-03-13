@@ -93,15 +93,15 @@ class AudioBranch(nn.Module):
     """
 
     def __init__(
-        self,
-        n_mels=128,
-        max_frames=1876,
-        cnn_channels=None,
-        embed_dim=128,
-        n_heads=4,
-        n_layers=2,
-        ff_dim=256,
-        dropout=0.1,
+            self,
+            n_mels=128,
+            max_frames=1876,
+            cnn_channels=None,
+            embed_dim=128,
+            n_heads=4,
+            n_layers=2,
+            ff_dim=256,
+            dropout=0.1,
     ):
         super().__init__()
         if cnn_channels is None:
@@ -149,12 +149,12 @@ class AudioBranch(nn.Module):
         x: (batch, 1, 128, 1876)
         Returns: (batch, embed_dim)
         """
-        h = self.cnn(x)              # (B, 128, 16, 234)
-        h = h.mean(dim=2)            # (B, 128, 234)  average over freq
-        h = h.permute(0, 2, 1)       # (B, 234, 128)  time-first
-        h = self.channel_proj(h)      # (B, 234, embed_dim)
-        h = self.pos_enc(h)           # (B, 234, embed_dim)
-        h = self.transformer(h)       # (B, 234, embed_dim)
+        h = self.cnn(x)  # (B, 128, 16, 234)
+        h = h.mean(dim=2)  # (B, 128, 234)  average over freq
+        h = h.permute(0, 2, 1)  # (B, 234, 128)  time-first
+        h = self.channel_proj(h)  # (B, 234, embed_dim)
+        h = self.pos_enc(h)  # (B, 234, embed_dim)
+        h = self.transformer(h)  # (B, 234, embed_dim)
         embedding, _ = self.attn_pool(h)  # (B, embed_dim)
         return embedding
 

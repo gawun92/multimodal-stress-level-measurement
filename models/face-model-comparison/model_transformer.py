@@ -13,22 +13,22 @@ from stress_dataset import (
 )
 
 INPUT_SIZE = N_LANDMARKS * N_COORDS
-D_MODEL    = 256
-N_HEADS    = 8
-N_LAYERS   = 3
-DIM_FF     = 512
-DROPOUT    = 0.1
+D_MODEL = 256
+N_HEADS = 8
+N_LAYERS = 3
+DIM_FF = 512
+DROPOUT = 0.1
 BATCH_SIZE = 16
-EPOCHS     = 10
-LR         = 1e-4
-DEVICE     = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+EPOCHS = 10
+LR = 1e-4
+DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=MAX_FRAMES + 1, dropout=0.1):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        pe  = torch.zeros(max_len, d_model)
+        pe = torch.zeros(max_len, d_model)
         pos = torch.arange(max_len).unsqueeze(1).float()
         div = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(pos * div)
@@ -44,7 +44,7 @@ class StressTransformer(nn.Module):
                  n_layers=N_LAYERS, dim_ff=DIM_FF, dropout=DROPOUT):
         super().__init__()
         self.input_proj = nn.Linear(input_size, d_model)
-        self.cls_token  = nn.Parameter(torch.zeros(1, 1, d_model))
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model))
         nn.init.trunc_normal_(self.cls_token, std=0.02)
         self.pos_enc = PositionalEncoding(d_model, dropout=dropout)
         encoder_layer = nn.TransformerEncoderLayer(
@@ -56,12 +56,12 @@ class StressTransformer(nn.Module):
             nn.GELU(), nn.Dropout(dropout), nn.Linear(128, 1))
 
     def forward(self, x):
-        B  = x.size(0)
-        x  = self.input_proj(x)
+        B = x.size(0)
+        x = self.input_proj(x)
         cls = self.cls_token.expand(B, -1, -1)
-        x  = torch.cat([cls, x], dim=1)
-        x  = self.pos_enc(x)
-        x  = self.encoder(x)
+        x = torch.cat([cls, x], dim=1)
+        x = self.pos_enc(x)
+        x = self.encoder(x)
         return self.head(x[:, 0, :]).squeeze(-1)
 
 
@@ -71,17 +71,17 @@ def train_one_fold(model, train_loader, val_loader,
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, f"transformer_fold{fold}.pt")
 
-    model     = model.to(DEVICE)
+    model = model.to(DEVICE)
     optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
     best_metrics = {"RMSE": float("inf"),
                     "Pearson": 0.0, "MSE": float("inf")}
-    best_state   = None
-    history      = {"loss": [], "rmse": [], "pearson": []}
+    best_state = None
+    history = {"loss": [], "rmse": [], "pearson": []}
 
     print(f"\n  {'Epoch':>6}  {'TrainLoss':>10}  {'RMSE':>8}  {'Pearson':>8}")
-    print(f"  {'-'*46}")
+    print(f"  {'-' * 46}")
 
     for epoch in range(1, epochs + 1):
         model.train()
@@ -115,7 +115,7 @@ def train_one_fold(model, train_loader, val_loader,
 
         if metrics["RMSE"] < best_metrics["RMSE"]:
             best_metrics = metrics
-            best_state   = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             torch.save(best_state, save_path)
 
     model.load_state_dict(best_state)
@@ -124,34 +124,35 @@ def train_one_fold(model, train_loader, val_loader,
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--face_dir",   default=FACE_DIR)
-    parser.add_argument("--csv_path",   default=CSV_PATH)
-    parser.add_argument("--test_ids",   nargs="+", default=TEST_IDS)
-    parser.add_argument("--n_splits",   type=int,   default=5)
-    parser.add_argument("--epochs",     type=int,   default=EPOCHS)
-    parser.add_argument("--batch_size", type=int,   default=BATCH_SIZE)
-    parser.add_argument("--lr",         type=float, default=LR)
-    parser.add_argument("--save_dir",   default="checkpoints")
+    parser.add_argument("--face_dir", default=FACE_DIR)
+    parser.add_argument("--csv_path", default=CSV_PATH)
+    parser.add_argument("--test_ids", nargs="+", default=TEST_IDS)
+    parser.add_argument("--n_splits", type=int, default=5)
+    parser.add_argument("--epochs", type=int, default=EPOCHS)
+    parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
+    parser.add_argument("--lr", type=float, default=LR)
+    parser.add_argument("--save_dir", default="checkpoints")
     args = parser.parse_args()
 
     fold_results, held_out_samples, fold_models = run_kfold(
-        model_fn    = StressTransformer,
-        train_fn    = train_one_fold,
-        face_dir    = args.face_dir,
-        csv_path    = args.csv_path,
-        test_ids    = args.test_ids,
-        n_splits    = args.n_splits,
-        batch_size  = args.batch_size,
-        model_name  = "Transformer",
-        epochs      = args.epochs,
-        lr          = args.lr,
-        save_dir    = args.save_dir,
+        model_fn=StressTransformer,
+        train_fn=train_one_fold,
+        face_dir=args.face_dir,
+        csv_path=args.csv_path,
+        test_ids=args.test_ids,
+        n_splits=args.n_splits,
+        batch_size=args.batch_size,
+        model_name="Transformer",
+        epochs=args.epochs,
+        lr=args.lr,
+        save_dir=args.save_dir,
     )
 
     print_kfold_summary({"Transformer": fold_results})
 
-    best_idx   = min(range(len(fold_results)), key=lambda i: fold_results[i]["RMSE"])
+    best_idx = min(range(len(fold_results)), key=lambda i: fold_results[i]["RMSE"])
     best_model = fold_models[best_idx]
     heldout_metrics = evaluate_on_heldout(best_model, held_out_samples,
                                           model_name="Transformer", device=DEVICE)

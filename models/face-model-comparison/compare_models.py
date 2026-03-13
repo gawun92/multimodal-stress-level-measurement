@@ -14,12 +14,13 @@ from stress_dataset import (
     evaluate_on_heldout, print_heldout_summary,
     FACE_DIR, CSV_PATH, TEST_IDS,
 )
-from model_lstm        import StressLSTM
+from model_lstm import StressLSTM
 from model_transformer import StressTransformer
-from model_cnn_lstm    import StressCNNLSTM
+from model_cnn_lstm import StressCNNLSTM
 
 DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 COLORS = {"LSTM": "#1f77b4", "Transformer": "#ff7f0e", "CNN-LSTM": "#2ca02c"}
+
 
 def train_model(model_cls, model_name, all_samples, held_out_samples, args):
     train_loader = DataLoader(StressDataset(all_samples),
@@ -28,21 +29,21 @@ def train_model(model_cls, model_name, all_samples, held_out_samples, args):
         StressDataset([(arr, score) for arr, score, *_ in held_out_samples]),
         batch_size=args.batch_size, shuffle=False)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  [{model_name}]  Full Training (Held-out Evaluation)")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  train : {len(all_samples)} samples  |  held-out : {len(held_out_samples)} samples")
 
     os.makedirs(args.save_dir, exist_ok=True)
-    save_path = os.path.join(args.save_dir, f"{model_name.lower().replace('-','_')}_full.pt")
+    save_path = os.path.join(args.save_dir, f"{model_name.lower().replace('-', '_')}_full.pt")
 
-    model     = model_cls().to(DEVICE)
+    model = model_cls().to(DEVICE)
     optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
-    history   = {"loss": [], "rmse": []}
+    history = {"loss": [], "rmse": []}
 
     print(f"\n  {'Epoch':>6}  {'TrainLoss':>10}  {'HeldRMSE':>10}")
-    print(f"  {'-'*32}")
+    print(f"  {'-' * 32}")
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -74,6 +75,7 @@ def train_model(model_cls, model_name, all_samples, held_out_samples, args):
     torch.save(model.state_dict(), save_path)
     print(f"\n  Model saved → {save_path}")
     return model, history
+
 
 def save_training_loss(histories, epochs, save_dir):
     fig, ax = plt.subplots(figsize=(7, 5))
@@ -109,16 +111,16 @@ def save_rmse(histories, epochs, save_dir):
 
 def save_heldout_bar(heldout_summary, save_dir):
     models = list(heldout_summary.keys())
-    x      = np.arange(len(models))
-    width  = 0.35
+    x = np.arange(len(models))
+    width = 0.35
     colors = [COLORS[m] for m in models]
 
     fig, ax1 = plt.subplots(figsize=(7, 5))
     ax2 = ax1.twinx()
 
-    ax1.bar(x - width/2, [heldout_summary[m]["RMSE"]    for m in models],
+    ax1.bar(x - width / 2, [heldout_summary[m]["RMSE"] for m in models],
             width, color=colors, alpha=0.85)
-    ax2.bar(x + width/2, [heldout_summary[m]["Pearson"] for m in models],
+    ax2.bar(x + width / 2, [heldout_summary[m]["Pearson"] for m in models],
             width, color=colors, alpha=0.45, hatch="//")
 
     ax1.set_title("Held-out Final Test")
@@ -137,7 +139,7 @@ def save_heldout_bar(heldout_summary, save_dir):
 
     best = min(models, key=lambda m: heldout_summary[m]["RMSE"])
     best_idx = models.index(best)
-    ax1.annotate("★ Best", xy=(best_idx - width/2, heldout_summary[best]["RMSE"]),
+    ax1.annotate("★ Best", xy=(best_idx - width / 2, heldout_summary[best]["RMSE"]),
                  xytext=(0, 6), textcoords="offset points",
                  ha="center", fontsize=9, color="green", fontweight="bold")
 
@@ -147,9 +149,10 @@ def save_heldout_bar(heldout_summary, save_dir):
     plt.close()
     print(f"  Saved: {path}")
 
+
 def main(args):
     heldout_summary = {}
-    histories       = {}
+    histories = {}
 
     kfold_subjects, held_out_samples = build_subject_samples(
         face_dir=args.face_dir, csv_path=args.csv_path, test_ids=args.test_ids)
@@ -159,15 +162,15 @@ def main(args):
         all_samples.extend(samples)
 
     models_config = [
-        ("LSTM",        StressLSTM),
+        ("LSTM", StressLSTM),
         ("Transformer", StressTransformer),
-        ("CNN-LSTM",    StressCNNLSTM),
+        ("CNN-LSTM", StressCNNLSTM),
     ]
 
     for model_name, model_cls in models_config:
-        print(f"\n{'★'*60}")
+        print(f"\n{'★' * 60}")
         print(f"  Running: {model_name}")
-        print(f"{'★'*60}")
+        print(f"{'★' * 60}")
 
         model, history = train_model(model_cls, model_name, all_samples, held_out_samples, args)
         histories[model_name] = history
@@ -188,13 +191,13 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--face_dir",   default=FACE_DIR)
-    parser.add_argument("--csv_path",   default=CSV_PATH)
-    parser.add_argument("--test_ids",   nargs="+", default=TEST_IDS)
-    parser.add_argument("--epochs",     type=int,   default=100)
-    parser.add_argument("--batch_size", type=int,   default=16)
-    parser.add_argument("--lr",         type=float, default=1e-3)
-    parser.add_argument("--save_dir",   default="checkpoints")
+    parser.add_argument("--face_dir", default=FACE_DIR)
+    parser.add_argument("--csv_path", default=CSV_PATH)
+    parser.add_argument("--test_ids", nargs="+", default=TEST_IDS)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--save_dir", default="checkpoints")
     args = parser.parse_args()
 
     main(args)
