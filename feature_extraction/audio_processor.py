@@ -79,7 +79,7 @@ def process_single_file(wav_path: str) -> np.ndarray:
 # Batch Processing
 # ─────────────────────────────────────────
 def process_all(split: str = "train"):
-    audio_dir  = os.path.join(DATA_DIR, "Audio", "bfl5") if os.path.exists(os.path.join(DATA_DIR, "Audio")) else os.path.join(DATA_DIR, split, "audio")
+    audio_dir  = os.path.join(DATA_DIR, "Audio") if os.path.exists(os.path.join(DATA_DIR, "Audio")) else os.path.join(DATA_DIR, split, "audio")
     output_dir = os.path.join(OUTPUT_DIR, split)
     os.makedirs(output_dir, exist_ok=True)
 
