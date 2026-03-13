@@ -9,25 +9,18 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions
 
-
-# ─────────────────────────────────────────
-# Config
-# ─────────────────────────────────────────
-TARGET_FPS  = 5
-MAX_FRAMES  = 300
+TARGET_FPS = 5
+MAX_FRAMES = 300
 N_LANDMARKS = 478
 
-BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CARC_DATA_DIR = "/project2/msoleyma_1026/group_14/data/stressid"
 LOCAL_DATA_DIR = os.path.join(BASE_DIR, "data", "stressid")
-DATA_DIR    = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
-OUTPUT_DIR  = os.path.join(BASE_DIR, "feature_extraction", "results", "face")
-MODEL_PATH  = os.path.join(BASE_DIR, "feature_extraction", "tasks", "face_landmarker.task")
+DATA_DIR = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
+OUTPUT_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "face")
+MODEL_PATH = os.path.join(BASE_DIR, "feature_extraction", "tasks", "face_landmarker.task")
 
 
-# ─────────────────────────────────────────
-# Core Functions
-# ─────────────────────────────────────────
 def extract_face_landmarks(mp4_path: str) -> np.ndarray:
     cap = cv2.VideoCapture(mp4_path)
     if not cap.isOpened():
@@ -38,7 +31,7 @@ def extract_face_landmarks(mp4_path: str) -> np.ndarray:
         original_fps = 15.0
     interval = max(1, int(round(original_fps / TARGET_FPS)))
 
-    result    = np.zeros((MAX_FRAMES, N_LANDMARKS, 3), dtype=np.float32)
+    result = np.zeros((MAX_FRAMES, N_LANDMARKS, 3), dtype=np.float32)
     frame_idx = 0
     saved_idx = 0
 
@@ -64,11 +57,7 @@ def extract_face_landmarks(mp4_path: str) -> np.ndarray:
                     lm = detection.face_landmarks[0]
                     for j in range(min(len(lm), N_LANDMARKS)):
                         result[saved_idx, j] = [lm[j].x, lm[j].y, lm[j].z]
-                # If no face is detected, result[saved_idx] remains 0.0, 
-                # which satisfies the zero-padding constraint for missing faces.
-
                 saved_idx += 1
-
             frame_idx += 1
 
     cap.release()
@@ -87,17 +76,16 @@ def normalize_landmarks(landmarks: np.ndarray) -> np.ndarray:
     return normalized
 
 
-# ─────────────────────────────────────────
-# Batch Processing
-# ─────────────────────────────────────────
 def process_all(split: str = "train"):
     if not os.path.exists(MODEL_PATH):
         print(f"[ERROR] Model file not found: {MODEL_PATH}")
         print("Download it with:")
-        print("  curl -o feature_extraction/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task")
+        print(
+            "  curl -o feature_extraction/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task")
         return
 
-    video_dir  = os.path.join(DATA_DIR, "Videos") if os.path.exists(os.path.join(DATA_DIR, "Videos")) else os.path.join(DATA_DIR, split, "videos")
+    video_dir = os.path.join(DATA_DIR, "Videos") if os.path.exists(os.path.join(DATA_DIR, "Videos")) else os.path.join(
+        DATA_DIR, split, "videos")
     output_dir = os.path.join(OUTPUT_DIR, split)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -111,9 +99,9 @@ def process_all(split: str = "train"):
     success, skip, fail = 0, 0, 0
 
     for mp4_path in tqdm(mp4_files, desc=f"  [{split}] Face Landmarks"):
-        stem       = mp4_path.stem
+        stem = mp4_path.stem
         subject_id = stem.split("_")[0]
-        task       = "_".join(stem.split("_")[1:])
+        task = "_".join(stem.split("_")[1:])
 
         subject_out_dir = os.path.join(output_dir, subject_id)
         os.makedirs(subject_out_dir, exist_ok=True)
@@ -136,9 +124,6 @@ def process_all(split: str = "train"):
     print(f"[face_feature_extractor] Output saved to: {output_dir}")
 
 
-# ─────────────────────────────────────────
-# Entry Point
-# ─────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", type=str, default="train", choices=["train", "test"])

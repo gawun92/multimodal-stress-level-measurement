@@ -67,7 +67,7 @@ class StressAudioDataset(Dataset):
         npy_path, label = self.samples[idx]
         mel = np.load(npy_path)  # (1, 128, 1876)
         X = torch.from_numpy(mel).float()
-        
+
         if self.augment:
             # Randomly apply 0-2 frequency masks and 0-2 time masks
             for _ in range(np.random.randint(1, 3)):

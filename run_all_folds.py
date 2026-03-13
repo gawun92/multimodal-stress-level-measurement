@@ -32,10 +32,8 @@ from models.audio_branch import AudioBranch, AudioClassifier
 DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
-
-
-
-def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size=config.BATCH_SIZE, lr=config.LEARNING_RATE):
+def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size=config.BATCH_SIZE,
+               lr=config.LEARNING_RATE):
     """Train a single fold and return training history."""
     num_classes = config.NUM_CLASSES_BINARY if label == "binary-stress" else config.NUM_CLASSES_AFFECT3
 
@@ -43,10 +41,10 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
     train_ds = StressAudioDataset(train_subjects, label_col=label, augment=True)
     val_ds = StressAudioDataset(val_subjects, label_col=label, augment=False)
 
-    logging.info(f"\n{'='*60}")
+    logging.info(f"\n{'=' * 60}")
     logging.info(f"FOLD {fold}: train={len(train_ds)} | val={len(val_ds)} samples")
     logging.info(f"  Train subjects: {len(train_subjects)} | Val: {len(val_subjects)} | Test: {len(test_subjects)}")
-    logging.info(f"{'='*60}")
+    logging.info(f"{'=' * 60}")
 
     if len(train_ds) == 0:
         logging.info(f"  [SKIP] No training samples for fold {fold}")
@@ -87,7 +85,7 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
         # Train
         model.train()
         total_loss, n_batches = 0.0, 0
-        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs} [Train]", leave=False)
+        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{epochs} [Train]", leave=False)
         for X, y in train_pbar:
             X, y = X.to(DEVICE), y.to(DEVICE)
             optimizer.zero_grad()
@@ -103,7 +101,7 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
         # Validate
         model.eval()
         val_loss_total, correct, total, val_batches = 0.0, 0, 0, 0
-        val_pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{epochs} [Val]", leave=False)
+        val_pbar = tqdm(val_loader, desc=f"Epoch {epoch + 1}/{epochs} [Val]", leave=False)
         with torch.no_grad():
             for X, y in val_pbar:
                 X, y = X.to(DEVICE), y.to(DEVICE)
@@ -123,7 +121,7 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
         history["val_acc"].append(val_acc)
 
         lr_now = optimizer.param_groups[0]["lr"]
-        logging.info(f"  Epoch {epoch+1:3d}/{epochs} | train_loss={train_loss:.4f} | "
+        logging.info(f"  Epoch {epoch + 1:3d}/{epochs} | train_loss={train_loss:.4f} | "
                      f"val_loss={val_loss:.4f} | val_acc={val_acc:.4f} | lr={lr_now:.2e}")
 
         if val_loss < best_val_loss:
@@ -133,7 +131,7 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
         else:
             patience_counter += 1
             if patience_counter >= config.PATIENCE:
-                logging.info(f"  Early stopping at epoch {epoch+1}")
+                logging.info(f"  Early stopping at epoch {epoch + 1}")
                 break
 
     logging.info(f"  Best val_loss: {best_val_loss:.4f} | Saved: {ckpt_path}")
@@ -168,7 +166,7 @@ def evaluate_fold(fold, label="binary-stress"):
             logits = model(X)
             probs = torch.softmax(logits, dim=1)
             preds = logits.argmax(dim=1)
-            
+
             all_preds.append(preds.cpu().numpy())
             all_labels.append(y.cpu().numpy())
             all_probs.append(probs.cpu().numpy())
@@ -183,8 +181,8 @@ def evaluate_fold(fold, label="binary-stress"):
     prec = precision_score(labels, preds, average="weighted", zero_division=0)
     rec = recall_score(labels, preds, average="weighted", zero_division=0)
     cm = confusion_matrix(labels, preds)
-    mcc = matthews_corrcoef(labels, preds)          # gold std for imbalanced binary
-    bal_acc = balanced_accuracy_score(labels, preds) # = (sensitivity + specificity) / 2
+    mcc = matthews_corrcoef(labels, preds)  # gold std for imbalanced binary
+    bal_acc = balanced_accuracy_score(labels, preds)  # = (sensitivity + specificity) / 2
 
     # AUC-ROC
     if num_classes == 2:
@@ -283,11 +281,11 @@ def evaluate_held_out(best_fold, label="binary-stress"):
     report = classification_report(labels, preds, target_names=target_names, zero_division=0)
     cm = confusion_matrix(labels, preds)
 
-    logging.info(f"\n{'='*60}")
+    logging.info(f"\n{'=' * 60}")
     logging.info(f"HELD-OUT EVALUATION ({len(held_out)} subjects: {held_out})")
     logging.info(f"  Using checkpoint from best CV fold: fold {best_fold}")
     logging.info(f"  Samples: {len(test_ds)}")
-    logging.info(f"{'='*60}")
+    logging.info(f"{'=' * 60}")
     logging.info(f"  Accuracy:     {acc:.4f}")
     logging.info(f"  Weighted F1:  {f1_w:.4f}")
     logging.info(f"  Macro F1:     {f1_macro:.4f}")
@@ -332,30 +330,30 @@ def main():
         all_results.append(result)
 
     # ── Print CV Summary ──
-    accs      = [r["accuracy"]          for r in all_results]
-    f1s       = [r["f1_weighted"]       for r in all_results]
-    f1_macros = [r["f1_macro"]          for r in all_results]
-    aucs      = [r["auc_roc"]           for r in all_results]
-    bal_accs  = [r["balanced_accuracy"] for r in all_results]
-    mccs      = [r["mcc"]               for r in all_results]
+    accs = [r["accuracy"] for r in all_results]
+    f1s = [r["f1_weighted"] for r in all_results]
+    f1_macros = [r["f1_macro"] for r in all_results]
+    aucs = [r["auc_roc"] for r in all_results]
+    bal_accs = [r["balanced_accuracy"] for r in all_results]
+    mccs = [r["mcc"] for r in all_results]
 
-    logging.info(f"\n{'='*70}")
+    logging.info(f"\n{'=' * 70}")
     logging.info(f"5-FOLD CROSS-VALIDATION SUMMARY")
-    logging.info(f"{'='*70}")
+    logging.info(f"{'=' * 70}")
     for r in all_results:
         logging.info(
             f"  Fold {r['fold']}: acc={r['accuracy']:.4f} | F1w={r['f1_weighted']:.4f} | "
             f"F1m={r['f1_macro']:.4f} | AUC={r['auc_roc']:.4f} | "
             f"BalAcc={r['balanced_accuracy']:.4f} | MCC={r['mcc']:.4f}"
         )
-    logging.info(f"{'='*70}")
+    logging.info(f"{'=' * 70}")
     logging.info(f"  Mean Accuracy:     {np.mean(accs):.4f} ± {np.std(accs):.4f}")
     logging.info(f"  Mean Weighted F1:  {np.mean(f1s):.4f} ± {np.std(f1s):.4f}")
     logging.info(f"  Mean Macro F1:     {np.mean(f1_macros):.4f} ± {np.std(f1_macros):.4f}")
     logging.info(f"  Mean AUC-ROC:      {np.mean(aucs):.4f} ± {np.std(aucs):.4f}")
     logging.info(f"  Mean Balanced Acc: {np.mean(bal_accs):.4f} ± {np.std(bal_accs):.4f}")
     logging.info(f"  Mean MCC:          {np.mean(mccs):.4f} ± {np.std(mccs):.4f}")
-    logging.info(f"{'='*70}")
+    logging.info(f"{'=' * 70}")
 
     # ── Held-Out Evaluation ──
     # Select best fold by Macro F1 (most robust for imbalanced binary —

@@ -30,11 +30,14 @@ CSV_PATH = os.path.join(BASE_DIR, "data/stressid/labels.csv")
 FACE_DIR = os.path.join(BASE_DIR, "feature_extraction/results/face/train")
 RESULTS_DIR = os.path.join(BASE_DIR, "results", "face")
 TEST_IDS: List[str] = ["wssm", "x1q3", "y8c3", "y9z6"]
+
+
 # ────────────────────────────────────────
 
 
 class _TeeStream:
     """Writes to both the original stream and a file."""
+
     def __init__(self, original, file_handle):
         self.original = original
         self.file_handle = file_handle
@@ -61,6 +64,7 @@ def tee_to_file(filepath: str):
         finally:
             sys.stdout = old_stdout
 
+
 MAX_FRAMES = 300
 
 # Hyperparameters
@@ -75,6 +79,7 @@ LR = 3e-4
 N_SPLITS = 5
 
 DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def _pad_or_truncate(arr: np.ndarray) -> np.ndarray:
     """Normalize a variable-length face array to (MAX_FRAMES, F)."""
@@ -112,6 +117,7 @@ class StressDataset(Dataset):
         x = torch.from_numpy(_pad_or_truncate(arr))
         y = torch.tensor(label, dtype=torch.long)
         return x, y
+
 
 # parse CSV
 def load_stress_labels(csv_path: str = CSV_PATH, label_col: str = "binary-stress") -> Dict[str, int]:
@@ -161,6 +167,7 @@ def build_subject_samples(
     print(f"[dataset] Held-out subjects: {len(test_ids)} ({len(held_out_samples)} samples)")
     return kfold_subjects, held_out_samples
 
+
 def get_kfold_dataloaders(
         fold_idx: int,
         kfold_subjects: Dict[str, List],
@@ -187,6 +194,7 @@ def get_kfold_dataloaders(
                             batch_size=batch_size, shuffle=False)
     return train_loader, val_loader, val_pids
 
+
 def compute_metrics(preds: np.ndarray, labels: np.ndarray,
                     probs: np.ndarray = None) -> Dict[str, float]:
     acc = accuracy_score(labels, preds)
@@ -199,6 +207,7 @@ def compute_metrics(preds: np.ndarray, labels: np.ndarray,
         else:
             auc = roc_auc_score(labels, probs, multi_class="ovr")
     return {"Accuracy": acc, "Weighted_F1": f1_w, "Macro_F1": f1_m, "AUC_ROC": auc}
+
 
 # evaluation
 def evaluate_on_heldout(
@@ -254,6 +263,7 @@ def evaluate_on_heldout(
     print(f"{'=' * 65}")
     return metrics
 
+
 def run_kfold(
         model_fn: Callable,
         train_fn: Callable,
@@ -297,6 +307,7 @@ def run_kfold(
 
     return fold_results, held_out_samples, fold_models
 
+
 # model
 class AttentionPooling(nn.Module):
     def __init__(self, hidden_size):
@@ -338,6 +349,7 @@ class StressCNNLSTM(nn.Module):
         x, _ = self.lstm(x)
         x = self.attn_pool(x)
         return self.head(x)
+
 
 def train_one_fold(model, train_loader, val_loader,
                    fold=0, epochs=EPOCHS, lr=LR, save_dir="checkpoints"):
@@ -394,6 +406,7 @@ def train_one_fold(model, train_loader, val_loader,
 
     model.load_state_dict(best_state)
     return best_metrics, model
+
 
 def train_full(label_col="binary-stress", epochs=EPOCHS, lr=LR,
                batch_size=BATCH_SIZE, save_dir="checkpoints"):

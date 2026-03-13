@@ -10,11 +10,12 @@ Usage:
 
 import json
 import os
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import seaborn as sns
 from sklearn.metrics import roc_curve, auc, matthews_corrcoef, balanced_accuracy_score
 
@@ -40,24 +41,24 @@ def load_results():
 def plot_fold_metrics(data):
     results = data["fold_results"]
     folds = [r["fold"] for r in results]
-    accs   = [r["accuracy"]   for r in results]
-    f1w    = [r["f1_weighted"] for r in results]
-    f1m    = [r["f1_macro"]   for r in results]
-    aucs   = [r["auc_roc"]    for r in results]
+    accs = [r["accuracy"] for r in results]
+    f1w = [r["f1_weighted"] for r in results]
+    f1m = [r["f1_macro"] for r in results]
+    aucs = [r["auc_roc"] for r in results]
 
     x = np.arange(len(folds))
     w = 0.2
 
     fig, ax = plt.subplots(figsize=(13, 6))
-    b1 = ax.bar(x - 1.5*w, accs, w, label="Accuracy",      color="#4CAF50", edgecolor="black", lw=0.5)
-    b2 = ax.bar(x - 0.5*w, f1w,  w, label="Weighted F1",   color="#2196F3", edgecolor="black", lw=0.5)
-    b3 = ax.bar(x + 0.5*w, f1m,  w, label="Macro F1",      color="#FF9800", edgecolor="black", lw=0.5)
-    b4 = ax.bar(x + 1.5*w, aucs, w, label="AUC-ROC",       color="#9C27B0", edgecolor="black", lw=0.5)
+    b1 = ax.bar(x - 1.5 * w, accs, w, label="Accuracy", color="#4CAF50", edgecolor="black", lw=0.5)
+    b2 = ax.bar(x - 0.5 * w, f1w, w, label="Weighted F1", color="#2196F3", edgecolor="black", lw=0.5)
+    b3 = ax.bar(x + 0.5 * w, f1m, w, label="Macro F1", color="#FF9800", edgecolor="black", lw=0.5)
+    b4 = ax.bar(x + 1.5 * w, aucs, w, label="AUC-ROC", color="#9C27B0", edgecolor="black", lw=0.5)
 
     for bars in [b1, b2, b3, b4]:
         for bar in bars:
             h = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2, h + 0.01, f"{h:.2f}",
+            ax.text(bar.get_x() + bar.get_width() / 2, h + 0.01, f"{h:.2f}",
                     ha="center", va="bottom", fontsize=8, fontweight="bold")
 
     # Mean lines
@@ -111,7 +112,7 @@ def plot_training_curves(data):
         # Loss
         ax_loss = axes[0, fold]
         ax_loss.plot(epochs, h["train_loss"], "b-", lw=2, label="Train")
-        ax_loss.plot(epochs, h["val_loss"],   "r-", lw=2, label="Val")
+        ax_loss.plot(epochs, h["val_loss"], "r-", lw=2, label="Val")
         ax_loss.set_title(f"Fold {fold} — Loss", fontweight="bold")
         ax_loss.set_xlabel("Epoch")
         ax_loss.set_ylabel("Loss")
@@ -186,7 +187,7 @@ def plot_roc_curves(data):
     for r in results:
         fold = r["fold"]
         labels = np.array(r["labels"])
-        probs  = np.array(r["probs"])[:, 1]  # prob of "stressed" class
+        probs = np.array(r["probs"])[:, 1]  # prob of "stressed" class
         fpr, tpr, _ = roc_curve(labels, probs)
         roc_auc = auc(fpr, tpr)
         ax.plot(fpr, tpr, color=FOLD_COLORS[fold], lw=2,
@@ -202,7 +203,7 @@ def plot_roc_curves(data):
 
     # Mean AUC annotation
     mean_auc = np.mean([r["auc_roc"] for r in results])
-    std_auc  = np.std([r["auc_roc"] for r in results])
+    std_auc = np.std([r["auc_roc"] for r in results])
     ax.text(0.55, 0.12, f"Mean AUC = {mean_auc:.3f} ± {std_auc:.3f}",
             transform=ax.transAxes, fontsize=12, fontweight="bold",
             bbox=dict(boxstyle="round,pad=0.4", facecolor="lightyellow", alpha=0.9))
@@ -219,10 +220,10 @@ def plot_roc_curves(data):
 # ─────────────────────────────────────────
 def plot_baseline_comparison(data):
     results = data["fold_results"]
-    f1w_vals  = [r["f1_weighted"] for r in results]
-    f1m_vals  = [r["f1_macro"]   for r in results]
-    auc_vals  = [r["auc_roc"]    for r in results]
-    acc_vals  = [r["accuracy"]   for r in results]
+    f1w_vals = [r["f1_weighted"] for r in results]
+    f1m_vals = [r["f1_macro"] for r in results]
+    auc_vals = [r["auc_roc"] for r in results]
+    acc_vals = [r["accuracy"] for r in results]
 
     # Baseline (StressID paper, binary stress, SVM + handcrafted features)
     baseline_f1w = 0.68
@@ -232,8 +233,8 @@ def plot_baseline_comparison(data):
 
     metrics = ["Accuracy", "Weighted F1", "Macro F1", "AUC-ROC"]
     our_means = [np.mean(acc_vals), np.mean(f1w_vals), np.mean(f1m_vals), np.mean(auc_vals)]
-    our_stds  = [np.std(acc_vals),  np.std(f1w_vals),  np.std(f1m_vals),  np.std(auc_vals)]
-    baseline  = [baseline_acc, baseline_f1w, None, None]
+    our_stds = [np.std(acc_vals), np.std(f1w_vals), np.std(f1m_vals), np.std(auc_vals)]
+    baseline = [baseline_acc, baseline_f1w, None, None]
 
     x = np.arange(len(metrics))
     bars = ax.bar(x, our_means, yerr=our_stds, color="#2196F3", width=0.5,
@@ -242,7 +243,7 @@ def plot_baseline_comparison(data):
                   label="Our Model (CNN+Transformer, 5-fold CV)")
 
     for bar, mean, std in zip(bars, our_means, our_stds):
-        ax.text(bar.get_x() + bar.get_width()/2, mean + std + 0.02,
+        ax.text(bar.get_x() + bar.get_width() / 2, mean + std + 0.02,
                 f"{mean:.3f}", ha="center", va="bottom", fontsize=11, fontweight="bold")
 
     # Baseline markers where available
@@ -279,7 +280,7 @@ def plot_class_recall(data):
         tn, fp = cm[0, 0], cm[0, 1]
         fn, tp = cm[1, 0], cm[1, 1]
         ns_recall = tn / (tn + fp) if (tn + fp) > 0 else 0
-        s_recall  = tp / (tp + fn) if (tp + fn) > 0 else 0
+        s_recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         no_stress_recall.append(ns_recall)
         stressed_recall.append(s_recall)
 
@@ -288,14 +289,14 @@ def plot_class_recall(data):
     w = 0.35
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    b1 = ax.bar(x - w/2, no_stress_recall, w, label="No Stress (minority)",
+    b1 = ax.bar(x - w / 2, no_stress_recall, w, label="No Stress (minority)",
                 color="#4CAF50", edgecolor="black", lw=0.5)
-    b2 = ax.bar(x + w/2, stressed_recall,  w, label="Stressed (majority)",
+    b2 = ax.bar(x + w / 2, stressed_recall, w, label="Stressed (majority)",
                 color="#F44336", edgecolor="black", lw=0.5)
 
     for bar in list(b1) + list(b2):
         h = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2, h + 0.01, f"{h:.0%}",
+        ax.text(bar.get_x() + bar.get_width() / 2, h + 0.01, f"{h:.0%}",
                 ha="center", va="bottom", fontsize=10, fontweight="bold")
 
     ax.set_xticks(x)
@@ -326,33 +327,33 @@ def plot_professor_dashboard(data):
       Panel 5 (bot-mid)        : MCC + Balanced Accuracy per fold
       Panel 6 (bot-right)      : Radar chart — mean vs best-fold performance profile
     """
-    results  = data["fold_results"]
+    results = data["fold_results"]
     held_out = data.get("held_out_result")
 
     # ── Compute MCC + BalAcc from stored preds/labels ────────────────
     for r in results:
         lbls = np.array(r["labels"])
         prds = np.array(r["preds"])
-        r["mcc"]     = matthews_corrcoef(lbls, prds)
+        r["mcc"] = matthews_corrcoef(lbls, prds)
         r["bal_acc"] = balanced_accuracy_score(lbls, prds)
 
     if held_out:
         ho_lbls = np.array(held_out["labels"])
         ho_prds = np.array(held_out["preds"])
-        held_out["mcc"]     = matthews_corrcoef(ho_lbls, ho_prds)
+        held_out["mcc"] = matthews_corrcoef(ho_lbls, ho_prds)
         held_out["bal_acc"] = balanced_accuracy_score(ho_lbls, ho_prds)
 
     # ── Aggregate ─────────────────────────────────────────────────────
-    folds    = [r["fold"]        for r in results]
-    accs     = [r["accuracy"]    for r in results]
-    f1w      = [r["f1_weighted"] for r in results]
-    f1m      = [r["f1_macro"]    for r in results]
-    aucs     = [r["auc_roc"]     for r in results]
-    mccs     = [r["mcc"]         for r in results]
-    bal_accs = [r["bal_acc"]     for r in results]
+    folds = [r["fold"] for r in results]
+    accs = [r["accuracy"] for r in results]
+    f1w = [r["f1_weighted"] for r in results]
+    f1m = [r["f1_macro"] for r in results]
+    aucs = [r["auc_roc"] for r in results]
+    mccs = [r["mcc"] for r in results]
+    bal_accs = [r["bal_acc"] for r in results]
 
     # Best fold by Macro F1 (same criterion as run_all_folds.py)
-    best_fold     = int(np.argmax(f1m))
+    best_fold = int(np.argmax(f1m))
     collapsed_fold = int(np.argmin(aucs))  # worst AUC = most collapsed
 
     # Per-class recall from confusion matrices
@@ -362,15 +363,15 @@ def plot_professor_dashboard(data):
         tn, fp = cm[0, 0], cm[0, 1]
         fn, tp = cm[1, 0], cm[1, 1]
         ns_recall.append(tn / (tn + fp + 1e-8))
-        s_recall.append(tp  / (tp + fn + 1e-8))
+        s_recall.append(tp / (tp + fn + 1e-8))
 
     # ── Color palette ─────────────────────────────────────────────────
     C = {
-        "acc":     "#4CAF50",
-        "f1w":     "#2196F3",
-        "f1m":     "#FF9800",
-        "auc":     "#9C27B0",
-        "mcc":     "#00BCD4",
+        "acc": "#4CAF50",
+        "f1w": "#2196F3",
+        "f1m": "#FF9800",
+        "auc": "#9C27B0",
+        "mcc": "#00BCD4",
         "bal_acc": "#E91E63",
     }
 
@@ -393,15 +394,15 @@ def plot_professor_dashboard(data):
     ax1 = fig.add_subplot(gs[0, :])
 
     metrics_list = [
-        ("Accuracy",    accs, C["acc"]),
-        ("Weighted F1", f1w,  C["f1w"]),
-        ("Macro F1",    f1m,  C["f1m"]),
-        ("AUC-ROC",     aucs, C["auc"]),
+        ("Accuracy", accs, C["acc"]),
+        ("Weighted F1", f1w, C["f1w"]),
+        ("Macro F1", f1m, C["f1m"]),
+        ("AUC-ROC", aucs, C["auc"]),
         ("Balanced Acc", bal_accs, C["bal_acc"]),
     ]
     n_m = len(metrics_list)
-    x   = np.arange(len(folds))
-    w   = 0.15
+    x = np.arange(len(folds))
+    w = 0.15
     offsets = np.linspace(-(n_m - 1) / 2, (n_m - 1) / 2, n_m) * w
 
     for i, (name, vals, color) in enumerate(metrics_list):
@@ -433,7 +434,7 @@ def plot_professor_dashboard(data):
                  transform=ax1.get_xaxis_transform())
 
     # Reference lines
-    ax1.axhline(0.68, color="red",  linestyle=":", lw=2,
+    ax1.axhline(0.68, color="red", linestyle=":", lw=2,
                 label="SVM Baseline F1w (0.68)", zorder=5)
     ax1.axhline(0.50, color="gray", linestyle="-", lw=0.8, alpha=0.45,
                 label="Random (0.50)", zorder=4)
@@ -457,8 +458,8 @@ def plot_professor_dashboard(data):
 
     for i in range(2):
         for j in range(len(folds)):
-            val  = recall_matrix[i, j]
-            col  = "white" if (val < 0.28 or val > 0.78) else "#111111"
+            val = recall_matrix[i, j]
+            col = "white" if (val < 0.28 or val > 0.78) else "#111111"
             ax2.text(j, i, f"{val:.0%}", ha="center", va="center",
                      fontsize=14, fontweight="bold", color=col)
 
@@ -493,16 +494,16 @@ def plot_professor_dashboard(data):
         return ("✔" if ok else "✗"), ("#2e7d32" if ok else "#c62828")
 
     rows_data = [
-        ("Metric",       "Mean ± Std",     "Ref",   ""),
-        ("─" * 11,       "─" * 13,         "─" * 5, ""),
-        ("Accuracy",     f"{np.mean(accs):.3f}±{np.std(accs):.3f}",     "0.68",  *status(np.mean(accs),     0.68)),
-        ("Weighted F1",  f"{np.mean(f1w):.3f}±{np.std(f1w):.3f}",       "0.68",  *status(np.mean(f1w),      0.68)),
-        ("Macro F1",     f"{np.mean(f1m):.3f}±{np.std(f1m):.3f}",       ">0.50", *status(np.mean(f1m),      0.50)),
-        ("AUC-ROC",      f"{np.mean(aucs):.3f}±{np.std(aucs):.3f}",     ">0.50", *status(np.mean(aucs),     0.50)),
+        ("Metric", "Mean ± Std", "Ref", ""),
+        ("─" * 11, "─" * 13, "─" * 5, ""),
+        ("Accuracy", f"{np.mean(accs):.3f}±{np.std(accs):.3f}", "0.68", *status(np.mean(accs), 0.68)),
+        ("Weighted F1", f"{np.mean(f1w):.3f}±{np.std(f1w):.3f}", "0.68", *status(np.mean(f1w), 0.68)),
+        ("Macro F1", f"{np.mean(f1m):.3f}±{np.std(f1m):.3f}", ">0.50", *status(np.mean(f1m), 0.50)),
+        ("AUC-ROC", f"{np.mean(aucs):.3f}±{np.std(aucs):.3f}", ">0.50", *status(np.mean(aucs), 0.50)),
         ("Balanced Acc", f"{np.mean(bal_accs):.3f}±{np.std(bal_accs):.3f}", ">0.50", *status(np.mean(bal_accs), 0.50)),
-        ("MCC",          f"{np.mean(mccs):.3f}±{np.std(mccs):.3f}",     ">0",    *status(np.mean(mccs),     0.0)),
-        ("─" * 11,       "─" * 13,         "─" * 5, ""),
-        (f"Best fold",   f"#{best_fold}",  f"F1m={f1m[best_fold]:.3f}", ""),
+        ("MCC", f"{np.mean(mccs):.3f}±{np.std(mccs):.3f}", ">0", *status(np.mean(mccs), 0.0)),
+        ("─" * 11, "─" * 13, "─" * 5, ""),
+        (f"Best fold", f"#{best_fold}", f"F1m={f1m[best_fold]:.3f}", ""),
     ]
     if held_out:
         rows_data.append((
@@ -517,17 +518,17 @@ def plot_professor_dashboard(data):
     ax3.text(0.5, 0.95, "(vs SVM baseline / random)", ha="center", va="top",
              fontsize=9, color="#555555", transform=ax3.transAxes)
 
-    col_x   = [0.01, 0.42, 0.72, 0.90]
+    col_x = [0.01, 0.42, 0.72, 0.90]
     y_start = 0.88
-    row_h   = 0.082
+    row_h = 0.082
 
     for i, row in enumerate(rows_data):
         y = y_start - i * row_h
-        is_header  = (i == 0)
+        is_header = (i == 0)
         is_divider = (i == 1 or i == len(rows_data) - 2 - (1 if held_out else 0))
         for j, (txt, xp) in enumerate(zip(row, col_x)):
-            if j == 3 and txt in ("✔", "✗"):          # status column
-                sc = row[3]                            # colour already a string
+            if j == 3 and txt in ("✔", "✗"):  # status column
+                sc = row[3]  # colour already a string
                 # colour was packed as 4th element
                 fc = "#2e7d32" if txt == "✔" else ("#c62828" if txt == "✗" else "#333333")
                 ax3.text(xp, y, txt, ha="left", va="top",
@@ -536,7 +537,7 @@ def plot_professor_dashboard(data):
             else:
                 fc = ("#1a1a2e" if is_header
                       else "#888888" if is_divider
-                      else "#333333")
+                else "#333333")
                 fw = "bold" if is_header else "normal"
                 ax3.text(xp, y, str(txt), ha="left", va="top",
                          fontsize=8.5, fontweight=fw, color=fc,
@@ -550,7 +551,7 @@ def plot_professor_dashboard(data):
     ax4 = fig.add_subplot(gs[2, 0])
 
     if held_out:
-        ho_cm      = np.array(held_out["confusion_matrix"])
+        ho_cm = np.array(held_out["confusion_matrix"])
         ho_cm_norm = ho_cm.astype(float) / (ho_cm.sum(axis=1, keepdims=True) + 1e-8)
         sns.heatmap(ho_cm_norm, annot=ho_cm, fmt="d", ax=ax4, cmap="Blues",
                     vmin=0, vmax=1, linewidths=1,
@@ -578,8 +579,8 @@ def plot_professor_dashboard(data):
 
     x5 = np.arange(len(folds))
     w5 = 0.35
-    b1 = ax5.bar(x5 - w5 / 2, mccs,     w5, label="MCC",
-                 color=C["mcc"],     edgecolor="black", lw=0.5, alpha=0.85)
+    b1 = ax5.bar(x5 - w5 / 2, mccs, w5, label="MCC",
+                 color=C["mcc"], edgecolor="black", lw=0.5, alpha=0.85)
     b2 = ax5.bar(x5 + w5 / 2, bal_accs, w5, label="Balanced Accuracy",
                  color=C["bal_acc"], edgecolor="black", lw=0.5, alpha=0.85)
 
@@ -591,7 +592,7 @@ def plot_professor_dashboard(data):
                  va="bottom" if h >= 0 else "top",
                  fontsize=9, fontweight="bold")
 
-    ax5.axhline(0.0, color=C["mcc"],     linestyle=":", lw=1.8, alpha=0.7,
+    ax5.axhline(0.0, color=C["mcc"], linestyle=":", lw=1.8, alpha=0.7,
                 label="MCC=0 (random)")
     ax5.axhline(0.5, color=C["bal_acc"], linestyle="--", lw=1.8, alpha=0.6,
                 label="BalAcc=0.5 (random)")
@@ -634,7 +635,7 @@ def plot_professor_dashboard(data):
 
     mean_plot = mean_vals + mean_vals[:1]
     best_plot = best_vals + best_vals[:1]
-    ref_plot  = [0.5] * n_ax + [0.5]
+    ref_plot = [0.5] * n_ax + [0.5]
 
     # Reference circle at 0.5
     ax6.plot(angles, ref_plot, color="gray", lw=0.8, linestyle="--", alpha=0.5)

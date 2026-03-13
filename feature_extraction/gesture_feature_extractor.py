@@ -9,25 +9,18 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions
 
-
-# ─────────────────────────────────────────
-# Config
-# ─────────────────────────────────────────
-TARGET_FPS  = 5
-MAX_FRAMES  = 300
+TARGET_FPS = 5
+MAX_FRAMES = 300
 N_LANDMARKS = 21
 
-BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CARC_DATA_DIR = "/project2/msoleyma_1026/group_14/data/stressid"
 LOCAL_DATA_DIR = os.path.join(BASE_DIR, "data", "stressid")
-DATA_DIR    = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
-OUTPUT_DIR  = os.path.join(BASE_DIR, "feature_extraction", "results", "gesture")
-MODEL_PATH  = os.path.join(BASE_DIR, "feature_extraction", "tasks", "hand_landmarker.task")
+DATA_DIR = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
+OUTPUT_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "gesture")
+MODEL_PATH = os.path.join(BASE_DIR, "feature_extraction", "tasks", "hand_landmarker.task")
 
 
-# ─────────────────────────────────────────
-# Core Functions
-# ─────────────────────────────────────────
 def extract_hand_landmarks(mp4_path: str) -> np.ndarray:
     cap = cv2.VideoCapture(mp4_path)
     if not cap.isOpened():
@@ -38,11 +31,10 @@ def extract_hand_landmarks(mp4_path: str) -> np.ndarray:
         original_fps = 15.0
     interval = max(1, int(round(original_fps / TARGET_FPS)))
 
-    result    = np.zeros((MAX_FRAMES, N_LANDMARKS, 3), dtype=np.float32)
+    result = np.zeros((MAX_FRAMES, N_LANDMARKS, 3), dtype=np.float32)
     frame_idx = 0
     saved_idx = 0
 
-    # New mediapipe API
     base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
     options = HandLandmarkerOptions(
         base_options=base_options,
@@ -64,9 +56,7 @@ def extract_hand_landmarks(mp4_path: str) -> np.ndarray:
                     lm = detection.hand_landmarks[0]
                     for j in range(min(len(lm), N_LANDMARKS)):
                         result[saved_idx, j] = [lm[j].x, lm[j].y, lm[j].z]
-
                 saved_idx += 1
-
             frame_idx += 1
 
     cap.release()
@@ -85,17 +75,16 @@ def normalize_landmarks(landmarks: np.ndarray) -> np.ndarray:
     return normalized
 
 
-# ─────────────────────────────────────────
-# Batch Processing
-# ─────────────────────────────────────────
 def process_all(split: str = "train"):
     if not os.path.exists(MODEL_PATH):
         print(f"[ERROR] Model file not found: {MODEL_PATH}")
         print("Download it with:")
-        print("  curl -o feature_extraction/hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task")
+        print(
+            "  curl -o feature_extraction/hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task")
         return
 
-    video_dir  = os.path.join(DATA_DIR, "Videos") if os.path.exists(os.path.join(DATA_DIR, "Videos")) else os.path.join(DATA_DIR, split, "videos")
+    video_dir = os.path.join(DATA_DIR, "Videos") if os.path.exists(os.path.join(DATA_DIR, "Videos")) else os.path.join(
+        DATA_DIR, split, "videos")
     output_dir = os.path.join(OUTPUT_DIR, split)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -109,9 +98,9 @@ def process_all(split: str = "train"):
     success, skip, fail = 0, 0, 0
 
     for mp4_path in tqdm(mp4_files, desc=f"  [{split}] Hand Landmarks"):
-        stem       = mp4_path.stem
+        stem = mp4_path.stem
         subject_id = stem.split("_")[0]
-        task       = "_".join(stem.split("_")[1:])
+        task = "_".join(stem.split("_")[1:])
 
         subject_out_dir = os.path.join(output_dir, subject_id)
         os.makedirs(subject_out_dir, exist_ok=True)
@@ -134,9 +123,6 @@ def process_all(split: str = "train"):
     print(f"[gesture_feature_extractor] Output saved to: {output_dir}")
 
 
-# ─────────────────────────────────────────
-# Entry Point
-# ─────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", type=str, default="train", choices=["train", "test"])
