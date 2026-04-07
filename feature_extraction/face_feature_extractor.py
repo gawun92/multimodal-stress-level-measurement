@@ -26,9 +26,36 @@ MODEL_PATH  = os.path.join(BASE_DIR, "feature_extraction", "tasks", "face_landma
 
 
 # ─────────────────────────────────────────
+# canonical-space alignment
+# using MediaPipe's facial_transformation_matrixes
+# ─────────────────────────────────────────
+def to_canonical_space(landmarks: np.ndarray, transform_matrix: np.ndarray) -> np.ndarray:
+    """
+    Transform landmarks from image space to MediaPipe canonical face space.
+
+    MediaPipe's facial_transformation_matrixes provides a 4x4 matrix T
+    that maps canonical face → image space.
+    Applying T_inv maps image space → canonical face space.
+
+    landmarks       : (N, 3)  detected landmark coordinates
+    transform_matrix: (4, 4)  canonical → image space matrix
+    Returns         : (N, 3)  landmarks in canonical space
+    """
+    T_inv = np.linalg.inv(transform_matrix)
+    ones  = np.ones((landmarks.shape[0], 1), dtype=np.float32)
+    lm_h  = np.hstack([landmarks, ones])          # (N, 4) homogeneous
+    canonical = (T_inv @ lm_h.T).T[:, :3]         # (N, 3)
+    return canonical.astype(np.float32)
+
+
+# ─────────────────────────────────────────
 # Core Functions
 # ─────────────────────────────────────────
 def extract_face_landmarks(mp4_path: str) -> np.ndarray:
+    """
+    extract face landmarks from a video
+    align landmarks to MediaPipe's canonical face space (Procrustes normalization).
+    """
     cap = cv2.VideoCapture(mp4_path)
     if not cap.isOpened():
         raise IOError(f"Cannot open video: {mp4_path}")
@@ -42,11 +69,11 @@ def extract_face_landmarks(mp4_path: str) -> np.ndarray:
     frame_idx = 0
     saved_idx = 0
 
-    # New mediapipe API
     base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
     options = FaceLandmarkerOptions(
         base_options=base_options,
         num_faces=1,
+        output_facial_transformation_matrixes=True,  # ← canonical alignment
     )
 
     with FaceLandmarker.create_from_options(options) as landmarker:
@@ -60,31 +87,25 @@ def extract_face_landmarks(mp4_path: str) -> np.ndarray:
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 detection = landmarker.detect(mp_image)
 
-                if detection.face_landmarks:
+                if detection.face_landmarks and detection.facial_transformation_matrixes:
                     lm = detection.face_landmarks[0]
-                    for j in range(min(len(lm), N_LANDMARKS)):
-                        result[saved_idx, j] = [lm[j].x, lm[j].y, lm[j].z]
-                # If no face is detected, result[saved_idx] remains 0.0, 
-                # which satisfies the zero-padding constraint for missing faces.
+                    T   = np.array(detection.facial_transformation_matrixes[0].data).reshape(4, 4)
 
+                    # raw landmarks (N, 3)
+                    raw = np.array([[lm[j].x, lm[j].y, lm[j].z]
+                                    for j in range(min(len(lm), N_LANDMARKS))],
+                                   dtype=np.float32)
+
+                    # align to canonical face space
+                    result[saved_idx] = to_canonical_space(raw, T)
+
+                # If no face detected, frame stays 0 (zero-padding)
                 saved_idx += 1
 
             frame_idx += 1
 
     cap.release()
     return result
-
-
-def normalize_landmarks(landmarks: np.ndarray) -> np.ndarray:
-    normalized = landmarks.copy()
-    for t in range(landmarks.shape[0]):
-        frame = landmarks[t]
-        if frame.max() == 0:
-            continue
-        mins = frame.min(axis=0, keepdims=True)
-        maxs = frame.max(axis=0, keepdims=True)
-        normalized[t] = (frame - mins) / ((maxs - mins) + 1e-8)
-    return normalized
 
 
 # ─────────────────────────────────────────
@@ -125,7 +146,6 @@ def process_all(split: str = "train"):
 
         try:
             landmarks = extract_face_landmarks(str(mp4_path))
-            landmarks = normalize_landmarks(landmarks)
             np.save(out_path, landmarks)
             success += 1
         except Exception as e:
@@ -142,6 +162,9 @@ def process_all(split: str = "train"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", type=str, default="train", choices=["train", "test"])
+    parser.add_argument("--data_dir", type=str, default=None, help="Override data directory path")
     args = parser.parse_args()
 
+    if args.data_dir:
+        DATA_DIR = args.data_dir
     process_all(split=args.split)
