@@ -32,6 +32,23 @@ from models.audio_branch import AudioBranch, AudioClassifier
 DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
+class FocalLoss(nn.Module):
+    """
+    Multi-class focal loss: FL(pt) = -alpha_t * (1 - pt)^gamma * log(pt)
+    gamma=2 down-weights easy (majority class) examples, forcing the model
+    to focus on hard minority-class samples. Directly addresses collapse.
+    """
+    def __init__(self, alpha=None, gamma=2.0):
+        super().__init__()
+        self.alpha = alpha  # class weight tensor (same as CE weight)
+        self.gamma = gamma
+
+    def forward(self, logits, targets):
+        ce = F.cross_entropy(logits, targets, weight=self.alpha, reduction="none")
+        pt = torch.exp(-ce)
+        return ((1 - pt) ** self.gamma * ce).mean()
+
+
 
 
 
@@ -64,20 +81,25 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
     )
     model = AudioClassifier(branch, num_classes=num_classes).to(DEVICE)
 
-    # Class weights
+    # Class weights for focal loss alpha
     labels_arr = np.array([lbl for _, lbl in train_ds.samples])
     from sklearn.utils.class_weight import compute_class_weight
     weights = compute_class_weight("balanced", classes=np.arange(num_classes), y=labels_arr)
     class_weights = torch.tensor(weights, dtype=torch.float32).to(DEVICE)
+    logging.info(f"  Class weights: {class_weights.cpu().numpy()}")
 
-    # Aggressively weight the underrepresented class
+    # Weighted CrossEntropy — class weights handle imbalance, macro F1 early
+    # stopping (below) catches collapse before val_loss does
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=config.WEIGHT_DECAY)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
+    # Monitor val macro F1 (max) — catches collapse that val_loss misses
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="max", factor=0.5, patience=5
+    )
 
-    # Training loop
-    history = {"train_loss": [], "val_loss": [], "val_acc": []}
-    best_val_loss = float("inf")
+    # Training loop — early stop on val macro F1 (not val loss)
+    history = {"train_loss": [], "val_loss": [], "val_acc": [], "val_f1_macro": []}
+    best_val_f1 = -1.0
     patience_counter = 0
 
     os.makedirs(config.CHECKPOINT_DIR, exist_ok=True)
@@ -94,40 +116,45 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
             logits = model(X)
             loss = criterion(logits, y)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             total_loss += loss.item()
             n_batches += 1
             train_pbar.set_postfix({"loss": f"{loss.item():.4f}"})
         train_loss = total_loss / max(n_batches, 1)
 
-        # Validate
+        # Validate — collect all preds for macro F1
         model.eval()
-        val_loss_total, correct, total, val_batches = 0.0, 0, 0, 0
+        val_loss_total, val_batches = 0.0, 0
+        val_preds_all, val_labels_all = [], []
         val_pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{epochs} [Val]", leave=False)
         with torch.no_grad():
             for X, y in val_pbar:
                 X, y = X.to(DEVICE), y.to(DEVICE)
                 logits = model(X)
-                loss = criterion(logits, y)
-                val_loss_total += loss.item()
-                preds = logits.argmax(dim=1)
-                correct += (preds == y).sum().item()
-                total += y.size(0)
+                val_loss_total += criterion(logits, y).item()
+                val_preds_all.append(logits.argmax(dim=1).cpu().numpy())
+                val_labels_all.append(y.cpu().numpy())
                 val_batches += 1
         val_loss = val_loss_total / max(val_batches, 1)
-        val_acc = correct / max(total, 1)
+        val_preds_np = np.concatenate(val_preds_all)
+        val_labels_np = np.concatenate(val_labels_all)
+        val_acc = (val_preds_np == val_labels_np).mean()
+        val_f1_macro = f1_score(val_labels_np, val_preds_np, average="macro", zero_division=0)
 
-        scheduler.step(val_loss)
+        scheduler.step(val_f1_macro)
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
         history["val_acc"].append(val_acc)
+        history["val_f1_macro"].append(val_f1_macro)
 
         lr_now = optimizer.param_groups[0]["lr"]
         logging.info(f"  Epoch {epoch+1:3d}/{epochs} | train_loss={train_loss:.4f} | "
-                     f"val_loss={val_loss:.4f} | val_acc={val_acc:.4f} | lr={lr_now:.2e}")
+                     f"val_loss={val_loss:.4f} | val_acc={val_acc:.4f} | "
+                     f"val_f1m={val_f1_macro:.4f} | lr={lr_now:.2e}")
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_f1_macro > best_val_f1:
+            best_val_f1 = val_f1_macro
             patience_counter = 0
             torch.save(model.state_dict(), ckpt_path)
         else:
@@ -136,7 +163,7 @@ def train_fold(fold, label="binary-stress", epochs=config.NUM_EPOCHS, batch_size
                 logging.info(f"  Early stopping at epoch {epoch+1}")
                 break
 
-    logging.info(f"  Best val_loss: {best_val_loss:.4f} | Saved: {ckpt_path}")
+    logging.info(f"  Best val macro F1: {best_val_f1:.4f} | Saved: {ckpt_path}")
     return history
 
 
@@ -314,8 +341,17 @@ def evaluate_held_out(best_fold, label="binary-stress"):
     }
 
 
+def parse_args():
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument("--label", default="binary-stress",
+                   choices=["binary-stress", "affect3-class"])
+    return p.parse_args()
+
+
 def main():
-    label = "binary-stress"
+    args = parse_args()
+    label = args.label
     n_folds = config.NUM_FOLDS
 
     # ── Train all folds ──
