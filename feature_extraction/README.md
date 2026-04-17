@@ -23,9 +23,9 @@ These scripts use **Direct Memory Access (DMA) Simulation**:
 
 ### `gesture_feature_extractor.py`
 *   **Input:** Raw `.mp4` tracking files.
-*   **Engine:** `mediapipe` Hand Landmarker Task.
-*   **Mechanic:** Identifies 21 distinct kinematic joints across the visual subject's hand. Used for analyzing high-anxiety hand-wringing or rigidity.
-*   **Output:** `(MaxFrames, 21, 3)` `.npy` tensor.
+*   **Engine:** `mediapipe` Pose Landmarker Task.
+*   **Mechanic:** Identifies a compact 11-point upper-body/head pose schema: nose, ears, shoulders, elbows, wrists, and hips. Used for analyzing posture shifts, head movement, and gross gestural behavior.
+*   **Output:** `(MaxFrames, 11, 3)` `.npy` tensor plus a per-frame gesture mask.
 
 ### `audio_processor.py`
 *   **Input:** Raw `.wav` 
