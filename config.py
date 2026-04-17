@@ -2,7 +2,7 @@
 config.py
 
 Centralized hyperparameters and path configuration for the StressID
-audio, gesture, upper-body, and face pipelines.
+audio, gesture, and face pipelines.
 """
 
 import os
@@ -18,7 +18,6 @@ DATA_DIR = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
 LABELS_CSV = os.path.join(DATA_DIR, "labels.csv")
 MEL_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "mel_spectrograms", "train")
 GESTURE_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "gesture", "train")
-UPPER_BODY_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "upper_body", "train")
 FACE_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "face", "train")
 CHECKPOINT_DIR = os.path.join(BASE_DIR, "checkpoints")
 
@@ -29,15 +28,11 @@ MAX_FRAMES = 1876
 
 
 # Gesture feature dimensions
+# The canonical gesture modality is the pose-based upper-body/head schema:
+# 11 landmarks * 3 coordinates per frame = 33 features.
 GESTURE_MAX_FRAMES = 300
-GESTURE_N_LANDMARKS = 21
-GESTURE_INPUT_DIM = GESTURE_N_LANDMARKS * 3  # 63
-
-
-# Upper-body feature dimensions
-UPPER_BODY_MAX_FRAMES = 300
-UPPER_BODY_N_LANDMARKS = 11
-UPPER_BODY_INPUT_DIM = UPPER_BODY_N_LANDMARKS * 3  # 33
+GESTURE_N_LANDMARKS = 11
+GESTURE_INPUT_DIM = GESTURE_N_LANDMARKS * 3  # 33
 
 
 # Face feature dimensions

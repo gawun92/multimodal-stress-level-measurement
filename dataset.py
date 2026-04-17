@@ -79,10 +79,10 @@ class StressAudioDataset(Dataset):
 
 class StressGestureDataset(Dataset):
     """
-    Loads pre-extracted hand-landmark .npy files and stress labels.
+    Loads pre-extracted gesture .npy files and stress labels.
 
     Each sample:
-        X: torch.FloatTensor of shape (T, 63)
+        X: torch.FloatTensor of shape (T, 33)
         mask: torch.BoolTensor of shape (T,)
         y: torch.LongTensor scalar
     """
@@ -127,119 +127,6 @@ class StressGestureDataset(Dataset):
                 key = f"{subject_id}_{task}"
                 npy_path = os.path.join(self.gesture_dir, subject_id, f"{task}_gesture.npy")
                 mask_path = os.path.join(self.gesture_dir, subject_id, f"{task}_gesture_mask.npy")
-
-                if key not in labels_df.index:
-                    continue
-                if not os.path.exists(npy_path):
-                    continue
-                if self.require_mask and not os.path.exists(mask_path):
-                    continue
-
-                label = int(labels_df.loc[key, self.label_col])
-                start = None
-                end = None
-                if self.window_len is not None:
-                    if not os.path.exists(mask_path):
-                        continue
-                    mask_np = np.load(mask_path).astype(bool)
-                    start, end, valid_count = self._select_window(mask_np)
-                    if valid_count < self.min_valid_frames:
-                        continue
-                self.samples.append((npy_path, mask_path, label, start, end))
-
-    def __len__(self):
-        return len(self.samples)
-
-    def _select_window(self, mask):
-        total_frames = int(mask.shape[0])
-        if total_frames == 0:
-            return 0, 0, 0
-
-        if self.window_len is None or self.window_len >= total_frames:
-            valid_count = int(mask.sum())
-            return 0, total_frames, valid_count
-
-        window = np.ones(self.window_len, dtype=np.int32)
-        scores = np.convolve(mask.astype(np.int32), window, mode="valid")
-        best_start = int(scores.argmax())
-        best_count = int(scores[best_start])
-        return best_start, best_start + self.window_len, best_count
-
-    def __getitem__(self, idx):
-        npy_path, mask_path, label, start, end = self.samples[idx]
-        landmarks = np.load(npy_path)
-        T_frames, n_landmarks, coord_dim = landmarks.shape
-        X = torch.from_numpy(landmarks.reshape(T_frames, n_landmarks * coord_dim)).float()
-
-        if os.path.exists(mask_path):
-            mask = torch.from_numpy(np.load(mask_path).astype(bool))
-        else:
-            mask = torch.any(X != 0, dim=1)
-
-        if start is not None:
-            X = X[start:end]
-            mask = mask[start:end]
-
-        y = torch.tensor(label, dtype=torch.long)
-        if self.return_mask:
-            return X, mask, y
-        return X, y
-
-
-class StressUpperBodyDataset(Dataset):
-    """
-    Loads pre-extracted upper-body .npy files and stress labels.
-
-    Each sample:
-        X: torch.FloatTensor of shape (T, 33)
-        mask: torch.BoolTensor of shape (T,)
-        y: torch.LongTensor scalar
-    """
-
-    def __init__(
-        self,
-        subject_ids,
-        label_col="binary-stress",
-        upper_body_dir=None,
-        labels_csv=None,
-        tasks=None,
-        return_mask=False,
-        require_mask=False,
-        window_len=None,
-        min_valid_frames=1,
-        window_mode="best",
-    ):
-        self.upper_body_dir = upper_body_dir or config.UPPER_BODY_DIR
-        self.labels_csv = labels_csv or config.LABELS_CSV
-        self.label_col = label_col
-        self.tasks = tasks or config.VIDEO_TASKS
-        self.return_mask = return_mask
-        self.require_mask = require_mask
-        self.window_len = window_len
-        self.min_valid_frames = min_valid_frames
-        self.window_mode = window_mode
-
-        if self.window_mode not in {"best"}:
-            raise ValueError(
-                f"Unsupported window_mode='{self.window_mode}'. Supported: 'best'."
-            )
-        if self.window_len is not None and self.window_len <= 0:
-            raise ValueError("window_len must be positive when provided.")
-        if self.min_valid_frames < 0:
-            raise ValueError("min_valid_frames must be >= 0.")
-
-        labels_df = pd.read_csv(self.labels_csv).set_index("subject/task")
-
-        self.samples = []
-        for subject_id in subject_ids:
-            for task in self.tasks:
-                key = f"{subject_id}_{task}"
-                npy_path = os.path.join(
-                    self.upper_body_dir, subject_id, f"{task}_upperbody.npy"
-                )
-                mask_path = os.path.join(
-                    self.upper_body_dir, subject_id, f"{task}_upperbody_mask.npy"
-                )
 
                 if key not in labels_df.index:
                     continue
@@ -369,10 +256,6 @@ def get_all_audio_subjects(mel_dir=None):
 
 def get_all_gesture_subjects(gesture_dir=None):
     return _get_all_subjects(gesture_dir or config.GESTURE_DIR)
-
-
-def get_all_upper_body_subjects(upper_body_dir=None):
-    return _get_all_subjects(upper_body_dir or config.UPPER_BODY_DIR)
 
 
 def get_all_face_subjects(face_dir=None):
