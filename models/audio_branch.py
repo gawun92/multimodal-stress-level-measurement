@@ -185,9 +185,10 @@ class AudioClassifier(nn.Module):
     """
     AudioBranch + classification head for standalone training/evaluation.
     Supports linear probing (freeze backbone, train only head).
+    num_classes=3 matches affect3-class labels (0=low, 1=medium, 2=high stress).
     """
 
-    def __init__(self, audio_branch, num_classes=2, hidden_dim=64):
+    def __init__(self, audio_branch, num_classes=3, hidden_dim=128):
         super().__init__()
         self.backbone = audio_branch
         self.head = nn.Sequential(
