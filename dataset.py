@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torchaudio.transforms as T
+from pathlib import Path
 from torch.utils.data import Dataset
 from sklearn.model_selection import KFold, StratifiedKFold
 
@@ -30,8 +31,19 @@ class StressAudioDataset(Dataset):
         y: torch.LongTensor scalar (0 or 1 for binary, 0/1/2 for affect3)
     """
 
-    def __init__(self, subject_ids, label_col="binary-stress", mel_dir=None, labels_csv=None, augment=False):
-        self.mel_dir = mel_dir or config.MEL_DIR
+    def __init__(self, subject_ids, label_col="binary-stress", mel_dir=None, labels_csv=None,
+                 augment=False, windowed=False):
+        self.windowed = windowed
+        # Use windowed mel dir if requested and it exists, else fall back to full-clip
+        if windowed and os.path.exists(config.MEL_WINDOWED_DIR):
+            self.mel_dir = mel_dir or config.MEL_WINDOWED_DIR
+        else:
+            if windowed:
+                print("[dataset] Windowed mels not found — falling back to full-clip. "
+                      "Run: python feature_extraction/audio_processor.py --windowed")
+            self.mel_dir = mel_dir or config.MEL_DIR
+            self.windowed = False
+
         self.labels_csv = labels_csv or config.LABELS_CSV
         self.label_col = label_col
         self.augment = augment
@@ -45,20 +57,33 @@ class StressAudioDataset(Dataset):
         labels_df = pd.read_csv(self.labels_csv)
         labels_df = labels_df.set_index("subject/task")
 
-        # Build sample list: (npy_path, label) for matching subject+task pairs
+        # Build sample list: (npy_path, label)
+        # Windowed mode: discovers all _w000, _w001, ... files per subject/task
+        # Full-clip mode: one file per subject/task as before
         self.samples = []
         for subject_id in subject_ids:
             for task in config.AUDIO_TASKS:
                 key = f"{subject_id}_{task}"
-                npy_path = os.path.join(self.mel_dir, subject_id, f"{task}_mel.npy")
-
                 if key not in labels_df.index:
-                    continue
-                if not os.path.exists(npy_path):
                     continue
 
                 label = int(labels_df.loc[key, self.label_col])
-                self.samples.append((npy_path, label))
+
+                if self.windowed:
+                    # Discover all windows for this clip
+                    subject_dir = os.path.join(self.mel_dir, subject_id)
+                    if not os.path.isdir(subject_dir):
+                        continue
+                    window_files = sorted(
+                        Path(subject_dir).glob(f"{task}_mel_w*.npy")
+                    )
+                    for wf in window_files:
+                        self.samples.append((str(wf), label))
+                else:
+                    npy_path = os.path.join(self.mel_dir, subject_id, f"{task}_mel.npy")
+                    if not os.path.exists(npy_path):
+                        continue
+                    self.samples.append((npy_path, label))
 
     def __len__(self):
         return len(self.samples)
