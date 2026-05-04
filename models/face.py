@@ -74,7 +74,7 @@ EPOCHS = 50
 LR = 3e-4
 N_SPLITS = 5
 
-DEVICE = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # MPS excluded: LSTM backward unstable on PyTorch 2.0.1
 
 def _pad_or_truncate(arr: np.ndarray) -> np.ndarray:
     """Normalize a variable-length face array to (MAX_FRAMES, F)."""
@@ -115,12 +115,11 @@ class StressDataset(Dataset):
 
 # parse CSV
 def load_stress_labels(csv_path: str = CSV_PATH, label_col: str = "binary-stress") -> Dict[str, int]:
-    """Load labels.csv -> {subject_id: class_label}."""
+    """Load labels.csv -> {subject_task: class_label} e.g. '2ea4_Math' -> 1."""
     label_map: Dict[str, int] = {}
     with open(csv_path, newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
-            subject_id = row["subject/task"].split("_")[0]
-            label_map[subject_id] = int(row[label_col])
+            label_map[row["subject/task"]] = int(row[label_col])
     return label_map
 
 
@@ -139,15 +138,16 @@ def build_subject_samples(
         pid_dir = os.path.join(face_dir, pid)
         if not os.path.isdir(pid_dir):
             continue
-        if pid not in label_map:
-            continue
-
-        label = label_map[pid]
         is_held_out = pid in test_ids
 
         for npy_file in sorted(os.listdir(pid_dir)):
             if not npy_file.endswith("_face.npy"):
                 continue
+            task = npy_file.replace("_face.npy", "")
+            subject_task = f"{pid}_{task}"
+            if subject_task not in label_map:
+                continue
+            label = label_map[subject_task]
             npy_path = os.path.join(pid_dir, npy_file)
             arr = np.load(npy_path).astype(np.float32)
 
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--kfold", type=str, default="N", choices=["Y", "N"],
                         help="Y: K-Fold training  |  N: train on all data")
-    parser.add_argument("--label", type=str, default="binary-stress",
+    parser.add_argument("--label", type=str, default="affect3-class",
                         choices=["binary-stress", "affect3-class"],
                         help="Label column from labels.csv")
     parser.add_argument("--epochs", type=int, default=130)
