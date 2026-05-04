@@ -25,6 +25,12 @@ GESTURE_FEATURE_DIR = os.path.join(BASE_DIR, "New_features", "gesture_features",
 GESTURE_CKPT_PATH = os.path.join(BASE_DIR, "New_features", "gesture_features", "gesture_branch_fold0_binary-stress_20260417_153259.pt")
 GESTURE_CKPT_INPUT_DIM = 33
 
+AUDIO_CKPT_PATH = os.path.join(BASE_DIR, "New_features", "audio_features", "audio_branch_fold3_binary-stress.pt")
+FACE_FEATURE_DIR = os.path.join(BASE_DIR, "New_features", "face_features")
+GESTURE_FEATURE_DIR = os.path.join(BASE_DIR, "New_features", "gesture_features", "extracted_features")
+GESTURE_CKPT_PATH = os.path.join(BASE_DIR, "New_features", "gesture_features", "gesture_branch_fold0_binary-stress_20260417_153259.pt")
+GESTURE_CKPT_INPUT_DIM = 33
+
 
 # Audio feature dimensions
 N_MELS = 128
