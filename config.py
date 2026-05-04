@@ -1,10 +1,3 @@
-"""
-config.py
-
-Centralized hyperparameters and path configuration for the StressID
-audio, gesture, and face pipelines.
-"""
-
 import os
 import torch
 
@@ -13,13 +6,24 @@ import torch
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CARC_DATA_DIR = "/project2/msoleyma_1026/group_14/data/stressid"
 LOCAL_DATA_DIR = os.path.join(BASE_DIR, "data", "stressid")
-DATA_DIR = CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR) else LOCAL_DATA_DIR
+_DESKTOP_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "StressID Dataset")
+DATA_DIR = (CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR)
+            else _DESKTOP_DATA_DIR if os.path.exists(_DESKTOP_DATA_DIR)
+            else LOCAL_DATA_DIR)
 
 LABELS_CSV = os.path.join(DATA_DIR, "labels.csv")
+AUDIO_WAV_DIR = os.path.join(DATA_DIR, "Audio")
 MEL_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "mel_spectrograms", "train")
 GESTURE_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "gesture", "train")
+UPPER_BODY_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "upper_body", "train")
 FACE_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "face", "train")
 CHECKPOINT_DIR = os.path.join(BASE_DIR, "checkpoints")
+
+AUDIO_CKPT_PATH = os.path.join(BASE_DIR, "New_features", "audio_features", "audio_branch_fold3_binary-stress.pt")
+FACE_FEATURE_DIR = os.path.join(BASE_DIR, "New_features", "face_features")
+GESTURE_FEATURE_DIR = os.path.join(BASE_DIR, "New_features", "gesture_features", "extracted_features")
+GESTURE_CKPT_PATH = os.path.join(BASE_DIR, "New_features", "gesture_features", "gesture_branch_fold0_binary-stress_20260417_153259.pt")
+GESTURE_CKPT_INPUT_DIM = 33
 
 
 # Audio feature dimensions
@@ -28,20 +32,22 @@ MAX_FRAMES = 1876
 
 
 # Gesture feature dimensions
-# The canonical gesture modality is the pose-based upper-body/head schema:
-# 11 landmarks * 3 coordinates per frame = 33 features.
 GESTURE_MAX_FRAMES = 300
-GESTURE_N_LANDMARKS = 11
-GESTURE_INPUT_DIM = GESTURE_N_LANDMARKS * 3  # 33
+GESTURE_N_LANDMARKS = 21
+GESTURE_INPUT_DIM = GESTURE_N_LANDMARKS * 3
+
+
+# Upper-body feature dimensions
+UPPER_BODY_MAX_FRAMES = 300
+UPPER_BODY_N_LANDMARKS = 11
+UPPER_BODY_INPUT_DIM = UPPER_BODY_N_LANDMARKS * 3
 
 
 # Face feature dimensions
-# The current face extractor writes per-frame flattened features:
-# 92 selected landmarks * 3 coordinates + 10 derived AUs = 286.
 FACE_MAX_FRAMES = 300
 FACE_N_LANDMARKS = 92
 FACE_AU_DIM = 10
-FACE_INPUT_DIM = FACE_N_LANDMARKS * 3 + FACE_AU_DIM  # 286
+FACE_INPUT_DIM = FACE_N_LANDMARKS * 3 + FACE_AU_DIM
 
 
 # Model architecture
@@ -83,7 +89,6 @@ DEVICE = torch.device(
 
 
 # Task lists
-# Only these tasks have .wav files.
 AUDIO_TASKS = [
     "Counting1",
     "Counting2",
@@ -94,7 +99,6 @@ AUDIO_TASKS = [
     "Stroop",
 ]
 
-# Video modalities can be extracted from the full StressID video task set.
 VIDEO_TASKS = [
     "Baseline",
     "Breathing",
