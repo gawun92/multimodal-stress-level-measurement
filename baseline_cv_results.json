@@ -1,0 +1,306 @@
+{
+  "Audio | AdaBoostClassifier": {
+    "acc_mean": 0.6194,
+    "f1m_mean": 0.4943,
+    "f1w_mean": 0.5942,
+    "bal_acc_mean": 0.5028,
+    "acc_std": 0.0996,
+    "f1m_std": 0.081
+  },
+  "Audio | DecisionTreeClassifier": {
+    "acc_mean": 0.6263,
+    "f1m_mean": 0.5383,
+    "f1w_mean": 0.6208,
+    "bal_acc_mean": 0.5366,
+    "acc_std": 0.0835,
+    "f1m_std": 0.0905
+  },
+  "Audio | GaussianNB": {
+    "acc_mean": 0.5586,
+    "f1m_mean": 0.4988,
+    "f1w_mean": 0.5618,
+    "bal_acc_mean": 0.5308,
+    "acc_std": 0.0809,
+    "f1m_std": 0.1144
+  },
+  "Audio | GradientBoostingClassifier": {
+    "acc_mean": 0.6509,
+    "f1m_mean": 0.501,
+    "f1w_mean": 0.6128,
+    "bal_acc_mean": 0.5141,
+    "acc_std": 0.0435,
+    "f1m_std": 0.0618
+  },
+  "Audio | KNeighborsClassifier": {
+    "acc_mean": 0.6436,
+    "f1m_mean": 0.4618,
+    "f1w_mean": 0.5845,
+    "bal_acc_mean": 0.4951,
+    "acc_std": 0.0776,
+    "f1m_std": 0.0945
+  },
+  "Audio | LogisticRegression": {
+    "acc_mean": 0.6083,
+    "f1m_mean": 0.5001,
+    "f1w_mean": 0.5938,
+    "bal_acc_mean": 0.5045,
+    "acc_std": 0.0818,
+    "f1m_std": 0.0622
+  },
+  "Audio | MLPClassifier": {
+    "acc_mean": 0.6312,
+    "f1m_mean": 0.4943,
+    "f1w_mean": 0.5981,
+    "bal_acc_mean": 0.5084,
+    "acc_std": 0.1081,
+    "f1m_std": 0.0805
+  },
+  "Audio | RandomForestClassifier": {
+    "acc_mean": 0.6859,
+    "f1m_mean": 0.4957,
+    "f1w_mean": 0.6189,
+    "bal_acc_mean": 0.5265,
+    "acc_std": 0.0649,
+    "f1m_std": 0.0839
+  },
+  "Audio | SVC": {
+    "acc_mean": 0.708,
+    "f1m_mean": 0.463,
+    "f1w_mean": 0.6072,
+    "bal_acc_mean": 0.5246,
+    "acc_std": 0.0626,
+    "f1m_std": 0.1063
+  },
+  "Feature Fusion | AdaBoostClassifier": {
+    "acc_mean": 0.6526,
+    "f1m_mean": 0.5022,
+    "f1w_mean": 0.6141,
+    "bal_acc_mean": 0.5152,
+    "acc_std": 0.0432,
+    "f1m_std": 0.0184
+  },
+  "Feature Fusion | DecisionTreeClassifier": {
+    "acc_mean": 0.5418,
+    "f1m_mean": 0.4783,
+    "f1w_mean": 0.5504,
+    "bal_acc_mean": 0.485,
+    "acc_std": 0.0735,
+    "f1m_std": 0.0763
+  },
+  "Feature Fusion | GaussianNB": {
+    "acc_mean": 0.5536,
+    "f1m_mean": 0.5036,
+    "f1w_mean": 0.5646,
+    "bal_acc_mean": 0.5164,
+    "acc_std": 0.115,
+    "f1m_std": 0.1187
+  },
+  "Feature Fusion | GradientBoostingClassifier": {
+    "acc_mean": 0.6305,
+    "f1m_mean": 0.4472,
+    "f1w_mean": 0.5746,
+    "bal_acc_mean": 0.4771,
+    "acc_std": 0.0711,
+    "f1m_std": 0.0697
+  },
+  "Feature Fusion | KNeighborsClassifier": {
+    "acc_mean": 0.659,
+    "f1m_mean": 0.4987,
+    "f1w_mean": 0.6114,
+    "bal_acc_mean": 0.5184,
+    "acc_std": 0.0816,
+    "f1m_std": 0.1034
+  },
+  "Feature Fusion | LogisticRegression": {
+    "acc_mean": 0.6304,
+    "f1m_mean": 0.5492,
+    "f1w_mean": 0.623,
+    "bal_acc_mean": 0.5569,
+    "acc_std": 0.0884,
+    "f1m_std": 0.088
+  },
+  "Feature Fusion | MLPClassifier": {
+    "acc_mean": 0.6536,
+    "f1m_mean": 0.4991,
+    "f1w_mean": 0.6086,
+    "bal_acc_mean": 0.5196,
+    "acc_std": 0.0876,
+    "f1m_std": 0.1124
+  },
+  "Feature Fusion | RandomForestClassifier": {
+    "acc_mean": 0.7059,
+    "f1m_mean": 0.4822,
+    "f1w_mean": 0.617,
+    "bal_acc_mean": 0.5296,
+    "acc_std": 0.0734,
+    "f1m_std": 0.1098
+  },
+  "Feature Fusion | SVC": {
+    "acc_mean": 0.7109,
+    "f1m_mean": 0.4573,
+    "f1w_mean": 0.605,
+    "bal_acc_mean": 0.5233,
+    "acc_std": 0.0723,
+    "f1m_std": 0.1154
+  },
+  "Multimodal (DL) | AttentionFusionNet": {
+    "acc_mean": 0.6119,
+    "f1m_mean": 0.5115,
+    "f1w_mean": 0.5984,
+    "bal_acc_mean": 0.5223,
+    "acc_std": 0.072,
+    "f1m_std": 0.1053
+  },
+  "Multimodal (DL) | CrossModalTransformer": {
+    "acc_mean": 0.6541,
+    "f1m_mean": 0.5508,
+    "f1w_mean": 0.6362,
+    "bal_acc_mean": 0.5536,
+    "acc_std": 0.0881,
+    "f1m_std": 0.0905
+  },
+  "Physiological | AdaBoostClassifier": {
+    "acc_mean": 0.6429,
+    "f1m_mean": 0.5079,
+    "f1w_mean": 0.6106,
+    "bal_acc_mean": 0.5221,
+    "acc_std": 0.0335,
+    "f1m_std": 0.0477
+  },
+  "Physiological | DecisionTreeClassifier": {
+    "acc_mean": 0.5947,
+    "f1m_mean": 0.518,
+    "f1w_mean": 0.5934,
+    "bal_acc_mean": 0.5273,
+    "acc_std": 0.1006,
+    "f1m_std": 0.1067
+  },
+  "Physiological | GaussianNB": {
+    "acc_mean": 0.6408,
+    "f1m_mean": 0.5373,
+    "f1w_mean": 0.6209,
+    "bal_acc_mean": 0.5586,
+    "acc_std": 0.0426,
+    "f1m_std": 0.0719
+  },
+  "Physiological | GradientBoostingClassifier": {
+    "acc_mean": 0.6254,
+    "f1m_mean": 0.4782,
+    "f1w_mean": 0.5881,
+    "bal_acc_mean": 0.4949,
+    "acc_std": 0.0752,
+    "f1m_std": 0.0866
+  },
+  "Physiological | KNeighborsClassifier": {
+    "acc_mean": 0.6401,
+    "f1m_mean": 0.4525,
+    "f1w_mean": 0.5828,
+    "bal_acc_mean": 0.484,
+    "acc_std": 0.0369,
+    "f1m_std": 0.0399
+  },
+  "Physiological | LogisticRegression": {
+    "acc_mean": 0.6372,
+    "f1m_mean": 0.5264,
+    "f1w_mean": 0.6197,
+    "bal_acc_mean": 0.5315,
+    "acc_std": 0.0469,
+    "f1m_std": 0.0626
+  },
+  "Physiological | MLPClassifier": {
+    "acc_mean": 0.5818,
+    "f1m_mean": 0.4456,
+    "f1w_mean": 0.5561,
+    "bal_acc_mean": 0.4606,
+    "acc_std": 0.0369,
+    "f1m_std": 0.0367
+  },
+  "Physiological | RandomForestClassifier": {
+    "acc_mean": 0.6734,
+    "f1m_mean": 0.4641,
+    "f1w_mean": 0.5984,
+    "bal_acc_mean": 0.5064,
+    "acc_std": 0.0689,
+    "f1m_std": 0.0914
+  },
+  "Physiological | SVC": {
+    "acc_mean": 0.7023,
+    "f1m_mean": 0.4123,
+    "f1w_mean": 0.58,
+    "bal_acc_mean": 0.5,
+    "acc_std": 0.0392,
+    "f1m_std": 0.0137
+  },
+  "Video | AdaBoostClassifier": {
+    "acc_mean": 0.6526,
+    "f1m_mean": 0.4998,
+    "f1w_mean": 0.6115,
+    "bal_acc_mean": 0.516,
+    "acc_std": 0.0407,
+    "f1m_std": 0.0326
+  },
+  "Video | DecisionTreeClassifier": {
+    "acc_mean": 0.5869,
+    "f1m_mean": 0.5172,
+    "f1w_mean": 0.5904,
+    "bal_acc_mean": 0.5229,
+    "acc_std": 0.0559,
+    "f1m_std": 0.0536
+  },
+  "Video | GaussianNB": {
+    "acc_mean": 0.5064,
+    "f1m_mean": 0.4669,
+    "f1w_mean": 0.5235,
+    "bal_acc_mean": 0.4771,
+    "acc_std": 0.0963,
+    "f1m_std": 0.0811
+  },
+  "Video | GradientBoostingClassifier": {
+    "acc_mean": 0.663,
+    "f1m_mean": 0.5143,
+    "f1w_mean": 0.6203,
+    "bal_acc_mean": 0.5305,
+    "acc_std": 0.0863,
+    "f1m_std": 0.0968
+  },
+  "Video | KNeighborsClassifier": {
+    "acc_mean": 0.6411,
+    "f1m_mean": 0.5369,
+    "f1w_mean": 0.6229,
+    "bal_acc_mean": 0.5422,
+    "acc_std": 0.0963,
+    "f1m_std": 0.1034
+  },
+  "Video | LogisticRegression": {
+    "acc_mean": 0.5843,
+    "f1m_mean": 0.4929,
+    "f1w_mean": 0.5798,
+    "bal_acc_mean": 0.497,
+    "acc_std": 0.049,
+    "f1m_std": 0.0631
+  },
+  "Video | MLPClassifier": {
+    "acc_mean": 0.6734,
+    "f1m_mean": 0.5625,
+    "f1w_mean": 0.6505,
+    "bal_acc_mean": 0.5671,
+    "acc_std": 0.0674,
+    "f1m_std": 0.084
+  },
+  "Video | RandomForestClassifier": {
+    "acc_mean": 0.6762,
+    "f1m_mean": 0.4263,
+    "f1w_mean": 0.579,
+    "bal_acc_mean": 0.4911,
+    "acc_std": 0.0375,
+    "f1m_std": 0.0403
+  },
+  "Video | SVC": {
+    "acc_mean": 0.6794,
+    "f1m_mean": 0.4038,
+    "f1w_mean": 0.5686,
+    "bal_acc_mean": 0.4829,
+    "acc_std": 0.067,
+    "f1m_std": 0.0245
+  }
+}
