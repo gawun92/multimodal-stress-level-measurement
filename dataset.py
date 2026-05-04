@@ -11,12 +11,12 @@ Usage:
 """
 
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
 import torchaudio.transforms as T
-from pathlib import Path
 from sklearn.model_selection import KFold, StratifiedKFold
 from torch.utils.data import Dataset
 
@@ -30,11 +30,22 @@ class StressAudioDataset(Dataset):
     Each sample:
         X: torch.FloatTensor of shape (1, 128, 1876)
         y: torch.LongTensor scalar (0 or 1 for binary, 0/1/2 for affect3)
+
+    When windowed=True, uses 10-second sliding windows (shape (1, 128, 313))
+    from MEL_WINDOWED_DIR if available, otherwise falls back to full-clip mels.
     """
 
-    def __init__(self, subject_ids, label_col="binary-stress", mel_dir=None, labels_csv=None,
-                 augment=False, windowed=False):
+    def __init__(
+        self,
+        subject_ids,
+        label_col="binary-stress",
+        mel_dir=None,
+        labels_csv=None,
+        augment=False,
+        windowed=False,
+    ):
         self.windowed = windowed
+
         # Use windowed mel dir if requested and it exists, else fall back to full-clip
         if windowed and os.path.exists(config.MEL_WINDOWED_DIR):
             self.mel_dir = mel_dir or config.MEL_WINDOWED_DIR
@@ -49,18 +60,15 @@ class StressAudioDataset(Dataset):
         self.label_col = label_col
         self.augment = augment
 
-        # SpecAugment transforms
         if self.augment:
             self.freq_mask = T.FrequencyMasking(freq_mask_param=15)
             self.time_mask = T.TimeMasking(time_mask_param=35)
 
-        # Load labels
-        labels_df = pd.read_csv(self.labels_csv)
-        labels_df = labels_df.set_index("subject/task")
+        labels_df = pd.read_csv(self.labels_csv).set_index("subject/task")
 
         # Build sample list: (npy_path, label)
-        # Windowed mode: discovers all _w000, _w001, ... files per subject/task
-        # Full-clip mode: one file per subject/task as before
+        # Windowed mode: discovers all _w000, _w001, ... files per subject/task.
+        # Full-clip mode: one file per subject/task.
         self.samples = []
         for subject_id in subject_ids:
             for task in config.AUDIO_TASKS:
@@ -71,7 +79,6 @@ class StressAudioDataset(Dataset):
                 label = int(labels_df.loc[key, self.label_col])
 
                 if self.windowed:
-                    # Discover all windows for this clip
                     subject_dir = os.path.join(self.mel_dir, subject_id)
                     if not os.path.isdir(subject_dir):
                         continue
@@ -91,11 +98,10 @@ class StressAudioDataset(Dataset):
 
     def __getitem__(self, idx):
         npy_path, label = self.samples[idx]
-        mel = np.load(npy_path)  # (1, 128, 1876)
+        mel = np.load(npy_path)
         X = torch.from_numpy(mel).float()
 
         if self.augment:
-            # Randomly apply 0-2 frequency masks and 0-2 time masks
             for _ in range(np.random.randint(1, 3)):
                 X = self.freq_mask(X)
             for _ in range(np.random.randint(1, 3)):
@@ -308,23 +314,13 @@ def get_subject_splits(
     tasks=None,
 ):
     """
-    Subject-level stratified k-fold split on the CV pool (held-out subjects excluded).
-    Returns (train_subjects, val_subjects, test_subjects).
-    The val set is carved from the train fold.
-
-    Stratification is by each subject's majority stress label across all their
-    tasks, ensuring each fold has a similar stressed/no-stress subject ratio.
-    This prevents the model collapse seen with plain KFold on small datasets.
+    Subject-level stratified k-fold split on the CV pool.
 
     Args:
         subject_fn: callable returning available subject ids for the target modality.
-                    Defaults to get_all_audio_subjects.
         tasks: task list to use when computing subject-level stratification labels.
-               Defaults to config.AUDIO_TASKS.
-
-    Note: config.HELD_OUT_SUBJECTS are always excluded from the CV pool so
-    they can never leak into training or validation.
     """
+
     n_folds = n_folds or config.NUM_FOLDS
     seed = seed or config.RANDOM_SEED
     val_ratio = val_ratio or config.VAL_RATIO
@@ -333,9 +329,22 @@ def get_subject_splits(
 
     all_subjects = subject_fn()
     if not all_subjects:
-        raise RuntimeError(
-            f"No subjects found. Run feature extraction first."
-        )
+        raise RuntimeError("No subjects found. Run feature extraction first.")
+
+    held_out_set = set(config.HELD_OUT_SUBJECTS)
+    subjects = np.array([s for s in all_subjects if s not in held_out_set])
+
+    labels_df = pd.read_csv(config.LABELS_CSV).set_index("subject/task")
+    subject_labels = []
+    for subject_id in subjects:
+        task_labels = []
+        for task in tasks:
+            key = f"{subject_id}_{task}"
+            if key in labels_df.index:
+                task_labels.append(int(labels_df.loc[key, "binary-stress"]))
+        dominant = int(np.round(np.mean(task_labels))) if task_labels else 1
+        subject_labels.append(dominant)
+    subject_labels = np.array(subject_labels)
 
     if fold < 0 or fold >= n_folds:
         raise ValueError(
@@ -343,25 +352,6 @@ def get_subject_splits(
             f"Valid fold indices are 0-{n_folds - 1}."
         )
 
-    # Exclude held-out subjects from the CV pool
-    held_out_set = set(config.HELD_OUT_SUBJECTS)
-    subjects = np.array([s for s in all_subjects if s not in held_out_set])
-
-    # Compute each subject's dominant binary-stress label for stratification
-    labels_df = pd.read_csv(config.LABELS_CSV).set_index("subject/task")
-    subject_labels = []
-    for s in subjects:
-        task_labels = []
-        for task in tasks:
-            key = f"{s}_{task}"
-            if key in labels_df.index:
-                task_labels.append(int(labels_df.loc[key, "binary-stress"]))
-        # Majority vote across tasks; default to 1 (stressed) if no data
-        dominant = int(np.round(np.mean(task_labels))) if task_labels else 1
-        subject_labels.append(dominant)
-    subject_labels = np.array(subject_labels)
-
-    # StratifiedKFold ensures each fold mirrors the overall class distribution
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
     splits = list(skf.split(subjects, subject_labels))
     train_val_idx, test_idx = splits[fold]
@@ -370,15 +360,13 @@ def get_subject_splits(
     train_val_subjects = subjects[train_val_idx]
     train_val_labels = subject_labels[train_val_idx]
 
-    # Carve out validation from train (also stratified)
     np.random.seed(seed + fold)
     n_val = max(1, int(len(train_val_subjects) * val_ratio))
-    # Stratified val carve: pick proportionally from each class
     stressed_idx = np.where(train_val_labels == 1)[0]
     no_stress_idx = np.where(train_val_labels == 0)[0]
     np.random.shuffle(stressed_idx)
     np.random.shuffle(no_stress_idx)
-    # Proportion of val from each class
+
     n_val_stressed = max(1, round(n_val * len(stressed_idx) / len(train_val_subjects)))
     n_val_no_stress = max(0, n_val - n_val_stressed)
     val_idx = np.concatenate(
