@@ -1,3 +1,31 @@
+"""
+gesture_feature_extractor.py
+
+Extract gesture landmarks from raw StressID videos using MediaPipe Pose
+Landmarker. Videos are sampled at a fixed FPS and saved as fixed-length landmark
+tensors with per-frame detection masks and clip-level metadata.
+
+Selected landmarks:
+    - head anchors: nose, left ear, right ear
+    - upper body: left/right shoulder, left/right elbow, left/right wrist
+    - torso anchors: left/right hip
+
+Outputs per video:
+    - `*_gesture.npy`:      landmark tensor of shape (MAX_FRAMES, 11, 3)
+    - `*_gesture_mask.npy`: detection mask of shape (MAX_FRAMES,)
+    - `*_gesture_meta.npz`: sampled frame count, detected frame count, coverage,
+                              source fps, and source path
+
+Normalization:
+    - center on the midpoint between left and right shoulders
+    - scale by max(shoulder width, torso length)
+    - rotate around the z-axis so shoulders are horizontally aligned in image space
+
+Usage:
+    python feature_extraction/gesture_feature_extractor.py --split train
+    python feature_extraction/gesture_feature_extractor.py --video-list-csv results/gesture/usable_gesture_videos_0p1.csv --labeled-only --skip-baseline
+"""
+
 import argparse
 import os
 from datetime import datetime
@@ -14,6 +42,9 @@ PoseLandmarker = mp.tasks.vision.PoseLandmarker
 PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
 
+TARGET_FPS = 5
+MAX_FRAMES = 300
+VISIBILITY_THRESHOLD = 0.5
 
 TARGET_FPS = 5
 MAX_FRAMES = 300

@@ -1,8 +1,23 @@
+"""
+models/gesture_branch.py
+
+Temporal sequence models for landmark-based motion inputs.
+
+Default behavior matches the original hand-gesture pipeline:
+    per-frame CNN -> BiLSTM -> attention pooling
+
+When `joint_count` is provided, the branch switches to a pose-aware mode:
+    per-joint MLP -> joint self-attention -> joint attention pooling per frame
+    -> BiLSTM -> temporal attention pooling
+"""
+
 import torch
 import torch.nn as nn
 
 
 class AttentionPooling(nn.Module):
+    """Learnable query vector that attends over the temporal sequence."""
+
     def __init__(self, d_model):
         super().__init__()
         self.query = nn.Parameter(torch.randn(1, 1, d_model))
@@ -28,6 +43,8 @@ class AttentionPooling(nn.Module):
 
 
 class JointAttentionPooling(nn.Module):
+    """Learnable query vector that pools joint embeddings within one frame."""
+
     def __init__(self, d_model):
         super().__init__()
         self.query = nn.Parameter(torch.randn(1, 1, d_model))
@@ -44,6 +61,12 @@ class JointAttentionPooling(nn.Module):
 
 
 class GestureBranch(nn.Module):
+    """
+    Landmark branch with two modes:
+        1. Legacy flat-vector mode for hand landmarks
+        2. Pose-aware mode for structured body-pose landmarks
+    """
+
     def __init__(
         self,
         input_size=63,
@@ -135,14 +158,6 @@ class GestureBranch(nn.Module):
         h = x.view(B * T, F, 1)
         h = self.cnn(h).mean(dim=-1)
         return h.view(B, T, -1)
-
-    def get_sequence(self, x, mask=None):
-        h = self._encode_frames(x)
-        h, _ = self.lstm(h)
-        if mask is not None:
-            mask = mask.to(device=h.device, dtype=torch.bool)
-            h = h * mask.unsqueeze(-1).to(dtype=h.dtype)
-        return self.proj(h)
 
     def get_embedding(self, x, mask=None):
         h = self._encode_frames(x)
