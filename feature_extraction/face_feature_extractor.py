@@ -1,7 +1,7 @@
 """
 face feature extraction => extracts per-frame features from face videos:
   1. media pipe face landmarker => 92 arousal-relevant 3D landmarks (eyes, eyebrows, lips)
-                              aligned to canonical face space
+                              aligned via geometric frontalization (template-free)
   2. stress-relevant AUs => 10 AU intensities computed
                               geometrically from landmarks (FACS-based)
 
@@ -134,15 +134,56 @@ def compute_stress_aus(frame: np.ndarray) -> np.ndarray:
     return np.clip(aus, 0.0, None)
 
 
-# canonical-space alignment
-# using MediaPipe's facial_transformation_matrices
-def to_canonical_space(landmarks: np.ndarray, transform_matrix: np.ndarray) -> np.ndarray:
-    # transform landmarks from image space to MediaPipe canonical face space.
-    T_inv = np.linalg.inv(transform_matrix)
-    ones = np.ones((landmarks.shape[0], 1), dtype=np.float32)
-    lm_h = np.hstack([landmarks, ones])
-    canonical = (T_inv @ lm_h.T).T[:, :3]
-    return canonical.astype(np.float32)
+# geometric frontalization
+# builds an anatomical coordinate frame directly from landmarks:
+#   X = right_eye - left_eye     (lateral axis)
+#   Y = brow_center - chin       (vertical axis, orthogonalized against X)
+#   Z = X × Y                   (frontal normal, points toward camera)
+# applies R = [X; Y; Z] to center+RMS-scale-normalized landmarks
+# => result is always in canonical frontal orientation regardless of head pose
+# MediaPipe landmark indices used for anatomical axes
+_CHIN_IDX = 152
+_L_EYE_IDX = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
+_R_EYE_IDX = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
+_L_BROW_IDX = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46]
+_R_BROW_IDX = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276]
+
+
+def frontalize(lm478: np.ndarray) -> np.ndarray:
+    """
+    Geometric (template-free) frontalization using MediaPipe landmark indices.
+
+    lm478   : (478, 3)  all raw MediaPipe landmarks (normalized image space)
+    Returns : (478, 3)  frontalized landmarks in canonical frontal orientation
+    """
+    # anatomical reference points
+    l_eye = lm478[_L_EYE_IDX].mean(0)
+    r_eye = lm478[_R_EYE_IDX].mean(0)
+    brow_c = np.concatenate([lm478[_L_BROW_IDX], lm478[_R_BROW_IDX]]).mean(0)
+    chin = lm478[_CHIN_IDX]
+
+    # X axis: left to right (lateral)
+    x_hat = r_eye - l_eye
+    x_hat /= np.linalg.norm(x_hat) + 1e-8
+
+    # Y axis: chin to brow (vertical), orthogonalized against X
+    y_raw = brow_c - chin
+    y_raw -= np.dot(y_raw, x_hat) * x_hat
+    y_hat = y_raw / (np.linalg.norm(y_raw) + 1e-8)
+
+    # Z axis: frontal normal (X × Y)
+    z_hat = np.cross(x_hat, y_hat)
+    z_hat /= np.linalg.norm(z_hat) + 1e-8
+
+    # rotation matrix: rows = [X, Y, Z]
+    R = np.stack([x_hat, y_hat, z_hat], axis=0).astype(np.float32)  # (3, 3)
+
+    # center + RMS scale normalize
+    c = lm478 - lm478.mean(0)
+    c = c / (np.sqrt((c ** 2).sum(1).mean()) + 1e-8)
+
+    # rotate to canonical frontal space
+    return (R @ c.T).T.astype(np.float32)
 
 
 # mediaPipe: landmark extraction
@@ -166,7 +207,6 @@ def extract_face_features(mp4_path: str) -> np.ndarray:
     options = FaceLandmarkerOptions(
         base_options=base_options,
         num_faces=1,
-        output_facial_transformation_matrixes=True,
     )
 
     with FaceLandmarker.create_from_options(options) as landmarker:
@@ -180,20 +220,19 @@ def extract_face_features(mp4_path: str) -> np.ndarray:
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 detection = landmarker.detect(mp_image)
 
-                if detection.face_landmarks and detection.facial_transformation_matrixes:
+                if detection.face_landmarks:
                     lm = detection.face_landmarks[0]
-                    T = np.array(detection.facial_transformation_matrixes[0].data).reshape(4, 4)
 
                     # extract all 478 landmarks
                     raw_all = np.array([[lm[j].x, lm[j].y, lm[j].z]
                                         for j in range(min(len(lm), N_LANDMARKS))],
                                        dtype=np.float32)
 
-                    # apply canonical-space alignment to all landmarks
-                    canonical_all = to_canonical_space(raw_all, T)
+                    # geometric frontalization (template-free, head-pose invariant)
+                    frontal_all = frontalize(raw_all)
 
                     # filter to arousal-relevant regions only (eyes, eyebrows, lips)
-                    selected = canonical_all[SELECTED_LANDMARKS]
+                    selected = frontal_all[SELECTED_LANDMARKS]
 
                     # compute stress-relevant AUs geometrically
                     aus = compute_stress_aus(selected)
