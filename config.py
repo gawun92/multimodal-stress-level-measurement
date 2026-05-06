@@ -14,6 +14,7 @@ DATA_DIR = (CARC_DATA_DIR if os.path.exists(CARC_DATA_DIR)
 LABELS_CSV = os.path.join(DATA_DIR, "labels.csv")
 AUDIO_WAV_DIR = os.path.join(DATA_DIR, "Audio")
 MEL_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "mel_spectrograms", "train")
+MEL_WINDOWED_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "mel_spectrograms_windowed", "train")
 GESTURE_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "gesture", "train")
 UPPER_BODY_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "upper_body", "train")
 FACE_DIR = os.path.join(BASE_DIR, "feature_extraction", "results", "face", "train")
@@ -29,6 +30,9 @@ GESTURE_CKPT_INPUT_DIM = 33
 # Audio feature dimensions
 N_MELS = 128
 MAX_FRAMES = 1876
+WINDOW_FRAMES = 313
+WINDOW_SEC = 10
+HOP_SEC = 5
 
 
 # Gesture feature dimensions
@@ -44,10 +48,11 @@ UPPER_BODY_INPUT_DIM = UPPER_BODY_N_LANDMARKS * 3
 
 
 # Face feature dimensions
+# 92 selected landmarks * 3 coordinates + 10 derived AUs = 286
 FACE_MAX_FRAMES = 300
 FACE_N_LANDMARKS = 92
 FACE_AU_DIM = 10
-FACE_INPUT_DIM = FACE_N_LANDMARKS * 3 + FACE_AU_DIM
+FACE_INPUT_DIM = FACE_N_LANDMARKS * 3 + FACE_AU_DIM  # 286
 
 
 # Model architecture
@@ -64,10 +69,10 @@ TRANSFORMER_DROPOUT = 0.1
 
 # Training
 BATCH_SIZE = 16
-LEARNING_RATE = 5e-5
+LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-3
-NUM_EPOCHS = 50
-PATIENCE = 10
+NUM_EPOCHS = 80
+PATIENCE = 15
 
 NUM_CLASSES_BINARY = 2
 NUM_CLASSES_AFFECT3 = 3
@@ -78,6 +83,8 @@ LABEL_COLUMN = "binary-stress"
 NUM_FOLDS = 5
 RANDOM_SEED = 42
 VAL_RATIO = 0.15
+ENSEMBLE_SEEDS = [42, 123, 456]
+TTA_STEPS = 1
 
 
 # Device
@@ -89,6 +96,7 @@ DEVICE = torch.device(
 
 
 # Task lists
+# Only these tasks have .wav files.
 AUDIO_TASKS = [
     "Counting1",
     "Counting2",
